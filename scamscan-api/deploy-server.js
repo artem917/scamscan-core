@@ -40,7 +40,7 @@ function deploy(){
 app.post('/deploy', (req, res) => {
   try {
     const { changelog } = req.body;
-    execSync(`git add . && git commit -m "Update CHANGELOG" && git push`, { cwd: __dirname });
+    execSync(`git add . && git commit -m "Update CHANGELOG" && git push`, { cwd: path.resolve(__dirname, '..') });
     res.json({ message: 'Deployed successfully!' });
   } catch (err) {
     res.json({ message: 'Error: ' + err.message });

@@ -1,0 +1,22 @@
+# системный мусор
+.DS_Store
+npm-debug.log*
+yarn-error.log*
+
+# бэкапы и хлам
+scamscan-backups/
+html/
+scamscan-token/
+
+# node_modules по проектам
+scamscan-api/node_modules/
+scamscan-web/node_modules/
+scamscan-bot/node_modules/
+
+# приват и временное
+**/.env
+**/logs/
+**/data/
+
+# pm2 дампы
+dump.pm2

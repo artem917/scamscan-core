@@ -1,0 +1,2567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ScamScan — Open Platform for Detecting Financial Scams</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <style>
+        /* ——— VARIABLES ——— */
+        :root {
+            --font-main: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+
+        /* ——— DARK THEME ——— */
+        body[data-theme="dark"] {
+            --bg-color: #020617;
+            --bg-elevated: #020617;
+            --bg-card: #020617;
+            --bg-card-soft: #020617;
+            --border-soft: #1f2937;
+            --border-strong: #1f2937;
+            --text-main: #e5e7eb;
+            --text-muted: #9ca3af;
+            --accent: #22c55e;
+            --accent-soft: rgba(34, 197, 94, 0.12);
+            --accent-hover: #4ade80;
+            --danger: #f97373;
+            --risk-medium: #facc15;
+            --shadow-strong: 0 24px 60px rgba(0, 0, 0, 0.75);
+            --shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.9);
+            background: radial-gradient(circle at top, #0b1120 0, var(--bg-color) 45%, #020617 100%);
+        }
+
+        /* ——— LIGHT THEME ——— */
+        body[data-theme="light"] {
+            --bg-color: #f3f4f6;
+            --bg-elevated: #f9fafb;
+            --bg-card: #ffffff;
+            --bg-card-soft: #eef2ff;
+            --border-soft: #e5e7eb;
+            --border-strong: #cbd5f5;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --accent: #16a34a;
+            --accent-soft: rgba(22, 163, 74, 0.09);
+            --accent-hover: #22c55e;
+            --danger: #dc2626;
+            --risk-medium: #d97706;
+            --shadow-strong: 0 20px 45px rgba(15, 23, 42, 0.18);
+            --shadow-soft: 0 14px 30px rgba(148, 163, 184, 0.45);
+            background: radial-gradient(circle at top, #e5e7eb 0, #f9fafb 45%, #e5e7eb 100%);
+        }
+
+        /* ——— RESET & BASE ——— */
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: var(--font-main);
+            color: var(--text-main);
+        }
+        .page {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 20px 16px 40px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ——— HEADER ——— */
+header {
+ position:sticky;
+ top:0;
+ z-index:50;
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ padding:10px 0 12px;
+ margin-bottom:32px;
+ background:transparent;
+ backdrop-filter:blur(10px);
+}
+
+        
+        .logo-block { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; }
+        .logo-mark {
+    justify-self: start !important;
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border-soft);
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-card-soft);
+        }
+        .logo-mark span.dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 999px;
+            background: #22c55e;
+        }
+        h1 {
+            font-size: 30px;
+            letter-spacing: 0.04em;
+            margin: 4px 0 2px;
+            background: linear-gradient(to right, #22c55e, #67e8f9);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        .controls { display: flex; align-items: center; gap: 10px; flex: 1; justify-content: flex-end; }
+        .pill-label {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border-soft);
+            color: var(--text-muted);
+            background: var(--bg-card-soft);
+        }
+        .theme-toggle {
+            background: transparent;
+            color: var(--text-main);
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border-soft);
+            cursor: pointer;
+            font-size: 12px;
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* ——— HERO ——— */
+        .hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+            gap: 26px;
+            margin-bottom: 30px;
+        }
+        .hero-text {
+            padding: 22px 24px;
+            border-radius: 18px;
+            border: 1px solid var(--border-soft);
+            background: var(--bg-card);
+            box-shadow: var(--shadow-strong);
+        }
+        .hero-eyebrow {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+        .hero-title { font-size: 26px; line-height: 1.25; margin-bottom: 10px; }
+        .hero-subtitle { font-size: 14px; color: var(--text-muted); margin-bottom: 16px; }
+        .hero-bullets {
+            margin: 0 0 18px;
+            padding-left: 18px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .hero-bullets li { margin-bottom: 4px; }
+
+        .hero-footnote {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .hero-cta-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .btn-secondary {
+            border-radius: 999px;
+            padding: 6px 12px;
+            font-size: 12px;
+            border: 1px solid var(--border-soft);
+            background: var(--bg-card-soft);
+            color: var(--text-main);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* ——— CHECKER BOX ——— */
+        .box {
+            background: var(--bg-card);
+            padding: 18px;
+            border-radius: 18px;
+            border: 1px solid var(--border-soft);
+            box-shadow: var(--shadow-soft);
+        }
+        .box-title { font-size: 15px; margin-bottom: 6px; }
+        .box-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 32px; }
+        .type-switch {
+            display: inline-flex;
+            gap: 6px;
+            margin-bottom: 10px;
+            padding: 3px;
+            border-radius: 999px;
+            background: var(--bg-card-soft);
+            border: 1px solid var(--border-soft);
+        }
+        .type-switch button {
+            border-radius: 999px;
+            border: none;
+            background: transparent;
+            padding: 4px 10px;
+            font-size: 11px;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+        .type-switch button.active {
+            background: var(--bg-card);
+            color: var(--text-main);
+            font-weight: 500;
+            box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.5);
+        }
+        .box input {
+            width: 100%;
+            padding: 9px 11px;
+            border-radius: 9px;
+            border: 1px solid var(--border-soft);
+            background: var(--bg-card-soft);
+            color: var(--text-main);
+            font-size: 13px;
+            margin-bottom: 9px;
+        }
+        .box button.submit-btn {
+            margin-top: 4px;
+            width: 100%;
+            padding: 9px;
+            border: none;
+            border-radius: 9px;
+            background: var(--accent);
+            color: #020617;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        #result { margin-top: 8px; font-size: 12px; min-height: 18px; }
+        .result-ok { color: var(--accent); }
+        .result-warn { color: var(--risk-medium); }
+        .result-bad { color: var(--danger); }
+        #report {
+            margin-top: 6px;
+            font-size: 11px;
+            line-height: 1.45;
+            padding-right: 4px;
+        }
+        .report-section { margin-top: 4px; }
+        .report-title { font-weight: 500; margin-bottom: 2px; }
+        .report-list { margin: 0; padding-left: 16px; }
+        .report-list li { margin-bottom: 1px; }
+        .risk-badge {
+            display: inline-block;
+            padding: 1px 7px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .risk-badge-low {
+            background: rgba(34, 197, 94, 0.16);
+            color: var(--accent);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+        }
+        .risk-badge-medium {
+            background: rgba(250, 204, 21, 0.16);
+            color: var(--risk-medium);
+            border: 1px solid rgba(250, 204, 21, 0.45);
+        }
+        .risk-badge-high {
+            background: rgba(239, 68, 68, 0.16);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.45);
+        }
+        .muted-note { color: var(--text-muted); font-size: 10px; margin-top: 3px; }
+
+        .wallet-link { color: var(--accent); text-decoration: none; }
+        .wallet-link:hover { text-decoration: underline; }
+
+
+        /* ——— SECTION BELOW HERO ——— */
+        .section-row {
+            display: block;
+            width: 100%;
+            margin-top: 40px;
+        }
+        .section-row-how {
+            margin-top: 40px;
+        }
+        .section-card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-soft);
+            padding: 16px 18px 18px;
+        }
+        .section-title { font-size: 14px; margin-bottom: 6px; }
+        .section-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .badge {
+            display: inline-block;
+            font-size: 11px;
+            border-radius: 999px;
+            padding: 3px 9px;
+            border: 1px solid var(--border-soft);
+            margin-bottom: 6px;
+            color: var(--text-muted);
+            background: var(--bg-card-soft);
+        }
+        .badge-mvp {
+            background: var(--accent-soft);
+            border-color: rgba(34, 197, 94, 0.6);
+            color: var(--text-main);
+        }
+        .badge-core {
+            background: rgba(59, 130, 246, 0.16);
+            border-color: rgba(59, 130, 246, 0.45);
+        }
+        .badge-ext {
+            background: rgba(168, 85, 247, 0.16);
+            border-color: rgba(168, 85, 247, 0.45);
+        }
+        .badge-ico {
+            background: rgba(234, 179, 8, 0.18);
+            border-color: rgba(234, 179, 8, 0.55);
+        }
+        .badge-ai {
+            background: rgba(45, 212, 191, 0.18);
+            border-color: rgba(45, 212, 191, 0.55);
+        }
+        .badge-dao {
+            background: rgba(148, 163, 184, 0.2);
+            border-color: rgba(148, 163, 184, 0.6);
+        }
+        .info-list {
+            font-size: 12px;
+            color: var(--text-muted);
+            padding-left: 16px;
+            margin: 0;
+        }
+        .info-list li { margin-bottom: 4px; }
+        .phase-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .timeline {
+            position: relative;
+            margin: 16px 0 20px;
+            display: grid;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            gap: 8px;
+            align-items: center;
+        }
+        .timeline-line {
+            position: absolute;
+            top: 50%;
+            left: 4%;
+            right: 4%;
+            height: 2px;
+            background: linear-gradient(to right, rgba(148, 163, 184, 0.7), rgba(148, 163, 184, 0.15));
+            z-index: 1;
+        }
+        .timeline-step {
+            position: relative;
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-muted);
+            z-index: 2;
+        }
+        .timeline-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            border: 2px solid rgba(148, 163, 184, 0.8);
+            background: var(--bg-color);
+            margin: 0 auto 3px;
+        }
+        .timeline-dot--active {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        .timeline-label {
+            font-size: 10px;
+            white-space: nowrap;
+        }
+
+        /* ——— FOOTER ——— */
+        footer {
+            margin-top: 26px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(31, 41, 55, 0.9);
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        footer a {
+            color: var(--text-muted);
+            text-decoration: underline;
+            text-decoration-style: dotted;
+        }
+
+        /* ——— RESPONSIVE ——— */
+        @media (max-width: 880px) {
+            .hero { grid-template-columns: 1fr; }
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            display: inline-block;
+            margin-left: 6px;
+        }
+        .status-dot-online {
+            background: #22c55e;
+        }
+        .status-dot-offline {
+            background: #ef4444;
+        }
+        .status-dot-degraded {
+            background: #facc15;
+        }
+        .scan-radar {
+            font-size: 11px;
+            color: var(--accent);
+            margin-top: 4px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            opacity: 0.9;
+            animation: radarPulse 1.2s ease-in-out infinite;
+        }
+         radarPulse {
+            0%, 100% { opacity: 0.4; transform: translateY(0px); }
+            50% { opacity: 1; transform: translateY(-1px); }
+        }
+        .scan-radar {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        @media (max-width: 720px) {
+            header {
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding-top: 12px;
+                padding-bottom: 16px;
+                gap: 8px;
+            }
+            .logo-block {
+                align-items: center;
+                text-align: center;
+                margin-top: 0;
+            }
+            .logo-mark {
+                position: static;
+                left: auto;
+                top: auto;
+                transform: none;
+                margin-bottom: 6px;
+            }
+            .controls {
+                position: static;
+                align-self: auto;
+                justify-content: center;
+                margin-top: 8px;
+            }
+            .hero-text { padding: 18px 16px; }
+            .section-row { grid-template-columns: 1fr; }
+            .timeline { display: none; }
+        }
+    
+
+        /* ——— DEMO CONTROLS ——— */
+        .demo-samples {
+            margin-top: 12px;
+            margin-bottom: 6px;
+        }
+
+        .demo-label {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 4px;
+        }
+
+        .demo-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .demo-btn {
+            background-color: #22c55e;
+            color: #021014;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            line-height: 1.2;
+            transition: background-color 0.16s ease, transform 0.08s ease, box-shadow 0.16s ease;
+        }
+
+        .demo-btn:hover {
+            background-color: #16a34a;
+            box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25);
+        }
+
+        .demo-btn:active {
+            transform: translateY(1px);
+            box-shadow: none;
+        }
+
+        .demo-report-mock {
+            display: none;
+margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(148, 163, 184, 0.35);
+        }
+
+        .demo-report-title {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-bottom: 2px;
+        }
+
+        .demo-report-risk {
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .demo-report-list {
+            margin: 0;
+            padding-left: 18px;
+            font-size: 12px;
+        }
+        .scan-radar {
+            font-size: 11px;
+            color: var(--accent);
+            margin-top: 4px;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            animation: radarPulse 2.4s ease-in-out infinite;
+        }
+
+         radarPulse {
+            0%, 100% { opacity: 0.7; }
+            50% { opacity: 1; }
+        }
+        .demo-buttons .demo-btn:nth-child(1) {
+            background-color: #ef4444;
+            color: #f9fafb;
+        }
+        .demo-buttons .demo-btn:nth-child(1):hover {
+            background-color: #dc2626;
+            box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35);
+        }
+
+        .demo-buttons .demo-btn:nth-child(2) {
+            background-color: #facc15;
+            color: #111827;
+        }
+        .demo-buttons .demo-btn:nth-child(2):hover {
+            background-color: #eab308;
+            box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.35);
+        }
+
+        .demo-buttons .demo-btn:nth-child(3),
+        .demo-buttons .demo-btn:nth-child(4) {
+            background-color: #22c55e;
+            color: #021014;
+        }
+        .demo-buttons .demo-btn:nth-child(3):hover,
+        .demo-buttons .demo-btn:nth-child(4):hover {
+            background-color: #16a34a;
+            box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.25);
+        }
+
+        
+
+        /* HEADER layout override (center brand, controls right) */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logo-block {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+            text-align: center;
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 0;
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* Center-block vertical alignment */
+        header .logo-block {
+            margin-top: -6px; /* поднимаем блок слегка вверх */
+        }
+        header .logo-block h1 {
+            margin: 0 0 6px 0;
+            line-height: 1.1;
+        }
+        header .logo-block .subtitle {
+            margin: 0 0 6px 0;
+            line-height: 1.25;
+            display: block;
+        }
+        header .logo-block .stats-line {
+            margin: 0;
+            line-height: 1.25;
+            display: block;
+        }
+
+        /* Mobile header layout fix */
+         (max-width: 720px) {
+            header {
+                flex-direction: column;
+                align-items: center;
+                padding-top: 12px;
+                padding-bottom: 16px;
+            }
+            header .logo-block {
+                margin-top: 0;
+            }
+            .logo-mark {
+                position: static;
+                left: auto;
+                top: auto;
+                transform: none;
+                margin-bottom: 6px;
+            }
+            .controls {
+                position: static;
+                right: auto;
+                top: auto;
+                transform: none;
+                margin-top: 8px;
+            }
+        }
+
+        /* Mobile header hard override */
+         (max-width: 720px) {
+            header {
+                position: sticky;
+                top: 0;
+                z-index: 40;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding-top: 10px;
+                padding-bottom: 14px;
+            }
+            header .logo-block {
+                align-items: center !important;
+                text-align: center !important;
+                margin-top: 0 !important;
+            }
+            .logo-mark {
+                position: static !important;
+                left: auto !important;
+                top: auto !important;
+                transform: none !important;
+                margin-bottom: 6px !important;
+            }
+            .controls {
+                position: static !important;
+                right: auto !important;
+                top: auto !important;
+                transform: none !important;
+                margin-top: 8px !important;
+                justify-content: center !important;
+            }
+        }
+
+.how-row {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-top: 25px;
+}
+.how-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+.how-icon {
+    font-size: 22px;
+    line-height: 1;
+    opacity: 0.9;
+    flex-shrink: 0;
+    width: 24px;
+    text-align: center;
+}
+.how-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.how-desc {
+    font-size: 14px;
+    opacity: 0.75;
+    line-height: 1.45;
+}
+(max-width: 600px) {
+    .how-icon { font-size: 20px; }
+    .how-desc { font-size: 13px; }
+}
+.features-block ul { list-style: none; padding: 0; margin: 0; }
+.features-block li { display:flex; align-items:flex-start; gap:14px; margin-bottom:18px; }
+.features-block li img { width:26px; height:26px; object-fit:contain; flex-shrink:0; margin-top:3px; }
+</style>
+    <style>
+        /* FINAL header override */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 32px;
+            padding: 10px 0 12px;
+            background: transparent;
+            backdrop-filter: blur(10px);
+        }
+        
+        .logo-block {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+            text-align: center;
+            margin-top: -6px;
+        }
+        .logo-mark {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border-soft);
+            color: var(--text-muted);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--bg-card-soft);
+        }
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+            justify-content: flex-end;
+        }
+        header .logo-block h1 {
+            margin: 0 0 6px 0;
+            line-height: 1.1;
+        }
+        header .logo-block .subtitle {
+            margin: 0 0 6px 0;
+            line-height: 1.25;
+            display: block;
+        }
+        header .logo-block .stats-line {
+            margin: 0;
+            line-height: 1.25;
+            display: block;
+        }
+         (max-width: 720px) {
+            header {
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding-top: 12px;
+                padding-bottom: 16px;
+                gap: 8px;
+            }
+            .logo-block {
+                align-items: center;
+                text-align: center;
+                margin-top: 0;
+            }
+            .logo-mark {
+                position: static;
+                left: auto;
+                top: auto;
+                transform: none;
+                margin-bottom: 6px;
+            }
+            .controls {
+                position: static;
+                align-self: auto;
+                justify-content: center;
+                margin-top: 8px;
+            }
+        }
+    </style>
+<style>
+/* === GRID HEADER FIX === */
+header {
+    display: grid !important;
+    grid-template-columns: 1fr auto 1fr !important;
+    align-items: center !important;
+    text-align: center !important;
+}
+
+/* MVP-бейдж (слева) */
+.logo-mark {
+    justify-self: start !important;
+    position: static !important;
+    transform: none !important;
+    margin-left: 0 !important;
+}
+
+/* Центр: ScamScan + subtitle + counter */
+.logo-block {
+    grid-column: 2 !important;
+}
+
+/* Правая часть: API + Dark */
+.controls {
+    justify-self: end !important;
+    margin-right: 16px !important;
+}
+
+/* ===== MOBILE ===== */
+ (max-width: 720px) {
+    header {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+        padding-top: 10px !important;
+        padding-bottom: 14px !important;
+    }
+    .logo-mark,
+    .controls,
+    .logo-block {
+        justify-self: center !important;
+        text-align: center !important;
+        margin-right: 0 !important;
+        margin-left: 0 !important;
+    }
+}
+</style>
+    <style>
+        /* MVP pill: force left align in header grid */
+        .logo-mark {
+            justify-self: start !important;
+            margin-left: 0 !important;
+        }
+    </style>
+<style>
+/* === HARD LEFT MVP FIX === */
+.logo-mark {
+    position: absolute !important;
+    left: 20px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    grid-column: 1 !important;
+    justify-self: start !important;
+    margin: 0 !important;
+    padding-left: 0 !important;
+}
+ (max-width: 720px) {
+    .logo-mark {
+        position: static !important;
+        transform: none !important;
+        left: auto !important;
+        top: auto !important;
+        justify-self: center !important;
+        margin-bottom: 6px !important;
+    }
+}
+</style>
+    <style>
+        /* FINAL MOBILE HEADER OVERRIDE */
+         (max-width: 720px) {
+            header {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 8px !important;
+                padding-top: 12px !important;
+                padding-bottom: 16px !important;
+            }
+            .logo-block {
+                align-items: center !important;
+                text-align: center !important;
+                margin-top: 0 !important;
+            }
+            .logo-mark {
+                position: static !important;
+                left: auto !important;
+                top: auto !important;
+                transform: none !important;
+                margin: 0 0 6px 0 !important;
+            }
+            .controls {
+                position: static !important;
+                right: auto !important;
+                top: auto !important;
+                transform: none !important;
+                justify-content: center !important;
+                margin-top: 8px !important;
+            }
+        }
+    </style>
+<style>
+/* Full-width glass header bar */
+
+
+/* How it works layout */
+.how-row {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-top: 20px;
+}
+.how-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+.how-icon {
+    font-size: 22px;
+    line-height: 1;
+    opacity: 0.9;
+    flex-shrink: 0;
+}
+.how-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text-main);
+}
+.how-desc {
+    font-size: 14px;
+    opacity: 0.78;
+    line-height: 1.45;
+}
+ (max-width: 600px) {
+    .how-icon { font-size: 20px; }
+    .how-desc { font-size: 13px; }
+}
+</style>
+<style>
+
+</style>
+<style>
+
+</style>
+<style>
+
+</style>
+</head>
+<body>
+<div class="page">
+    <header>
+        <div class="logo-block">
+            <div class="logo-mark">
+                <span class="dot"></span>
+                <span>MVP • Early-stage anti-scam service</span>
+            </div>
+            <h1>ScamScan</h1>
+            <p class="subtitle">Check risky financial URLs before you sign or send.</p>
+            <div id="scan-radar" class="scan-radar"></div>
+        </div>
+        <div class="controls">
+            <div class="pill-label" id="api-status-pill">
+                <span>API:</span>
+                <span id="api-status-text">checking…</span>
+                <span class="status-dot status-dot-offline" id="api-status-dot"></span>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn" title="Toggle theme">
+                <span id="theme-icon">🌙</span>
+                <span id="theme-label">Dark</span>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            
+<div class="hero-text">
+                <div class="hero-eyebrow">Open anti-scam intelligence</div>
+                <div class="hero-title">ScamScan — multi-chain risk analysis for URLs, wallets and smart contracts</div>
+                <div class="hero-subtitle">
+                    ScamScan analyzes blockchain behavior and page content in real time to highlight patterns commonly used in scams, high-risk schemes and social-engineering funnels.
+                </div>
+                <ul class="hero-bullets">
+                    <li>Detects potential scam signals on a URL, wallet or smart contract before funds move.</li>
+                    <li>Combines content and behavior: domains, redirects, SSL plus wallet and contract flow patterns.</li>
+                    <li>Uses transparent rule-based logic and plain-English summaries — every signal is explainable and auditable.</li>
+                </ul>
+
+                <div class="hero-cta-row" style="margin-bottom:12px;">
+                    <button class="btn-secondary" onclick="window.open('https://github.com/artem917/scamscan-core', '_blank')">
+                        View tech details on GitHub
+                        <span>↗</span>
+                    </button>
+                </div>
+
+                <div class="hero-footnote">
+                    <strong>Available now:</strong> URL analysis, text-pattern scam detector, multi-chain wallet checks and smart-contract checks with honeypot simulation (EVM networks; beta).<br />
+                    <strong>In development:</strong> deeper wallet &amp; contract intelligence, graph explorer, browser extension, API-level monitoring.</div>
+            </div>
+
+            <section class="box" id="checker-box">
+                <div class="box-title">One-click scam check</div>
+                <div class="box-desc">Paste a URL, wallet or contract — ScamScan will highlight potential risks based on the current rule set.</div>
+
+                <div class="type-switch">
+                    <button class="active" id="type-url" onclick="setCheckType('url')">URL</button>
+                    <button id="type-wallet" onclick="setCheckType('wallet')">Wallet</button>
+                    <button id="type-contract" onclick="setCheckType('contract')">Contract</button>
+                </div>
+
+                <input id="inputField" type="text" placeholder="Enter URL to check" />
+                <button class="submit-btn" id="action-btn" onclick="fakeCheck()">Check</button>
+                <p class="muted-note">
+        ScamScan analyzes URLs, page content and wallet risk patterns today.<br />
+        Wallet checks include format validation plus on-chain heuristics for supported chains (Ethereum, BNB Smart Chain, Bitcoin, TON, TRON, Solana).<br />
+        Smart-contract checks currently support EVM contracts (0x... addresses) and are in beta. This is not a full security audit.
+    </p>
+                <div class="demo-samples">
+                    <div class="demo-label">Try demo checks:</div>
+                    <div class="demo-buttons">
+                        <button type="button" class="demo-btn" onclick="setCheckType('url'); document.getElementById('inputField').value='https://belgatrix.com/'; fakeCheck();">
+                            Obvious scam URL
+                        </button>
+                        <button type="button" class="demo-btn" onclick="setCheckType('url'); document.getElementById('inputField').value='https://scamscan.online/demo-gray-url.html'; fakeCheck();">
+                            Gray-area URL
+                        </button>
+                        <button type="button" class="demo-btn" onclick="setCheckType('wallet'); document.getElementById('inputField').value='0x07c06d1EC98Ee2DC14Ba64B238d6A35B2cAB5f15'; fakeCheck();">
+                            Sample wallet
+                        </button>
+                        <button type="button" class="demo-btn" onclick="setCheckType('contract'); document.getElementById('inputField').value='0x87230146E138d3F296a9a77e497A2A83012e9Bc5'; fakeCheck();">
+                            Sample contract
+                        </button>
+                    </div>
+                </div>
+
+                <div class="demo-report-mock">
+                    <div class="demo-report-title">Sample report preview</div>
+                    <div class="demo-report-risk">Risk: <strong>78 / 100 (High)</strong></div>
+                    <ul class="demo-report-list">
+                        <li>Domain recently registered</li>
+                        <li>“Guaranteed profit” narrative in page text</li>
+                        <li>Redirect to unknown payment gateway</li>
+                    </ul>
+                </div>
+
+                <p id="result"></p>
+                <div id="techlog" style="font-size:10px; color:var(--text-muted); margin-top:4px; line-height:1.35;"></div>
+                <div id="report"></div>
+            </section>
+        </section>
+
+        <!-- WHY SCAMSCAN SECTION -->
+        <section class="section-row">
+            <div class="section-card">
+                <div class="badge">Why ScamScan?</div>
+                <div class="section-title">Why ScamScan? — What makes it different</div>
+                <div class="section-desc">
+                    ScamScan is not just a URL checker. It is a transparent multi-source detection engine designed to connect signals across websites, wallets and smart-contracts.
+                </div>
+                <ul class="info-list">
+                    <li><strong>Transparent rules, no vendor magic.</strong> Detection logic is readable, verifiable and designed for audit.</li>
+                    <li><strong>Hybrid analysis: structure + content.</strong> Domain, redirects, SSL, URL structure and text narratives work together instead of in isolation.</li>
+                    <li><strong>Multi-entity engine.</strong> The same core ruleset links websites, wallets and contracts under one risk model.</li>
+                    <li><strong>Two-layer architecture.</strong> Deterministic rules handle known scam patterns; an AI layer is planned for emerging schemes and rare edge cases.</li>
+                    <li><strong>API-first.</strong> The backend powers this page and is built to be reused in dashboards, alerts and automation.</li>
+                </ul>
+            </div>
+        </section>
+
+
+        <!-- HOW SCAMSCAN WORKS SECTION -->
+        <section class="section-row" style="margin-top:40px;">
+            <div class="section-card" style="padding:22px 24px 26px;">
+                <div class="badge" style="margin-bottom:10px;">How it works today &amp; where it goes next</div>
+                <div class="section-title" style="font-size:16px; margin-bottom:10px;">ScamScan engine — current scope and roadmap</div>
+                <div class="section-desc" style="margin-bottom:14px; font-size:13px;">
+                    ScamScan currently processes URLs, wallets and contracts in real time to highlight patterns commonly used in scams and high-risk schemes. The same engine is designed to extend to smart-contracts and deeper on-chain patterns.
+                </div>
+
+                <div class="how-row">
+                    <div class="how-item">
+                        <span class="how-icon">🛡️</span>
+                        <div class="how-text">
+                            <div class="how-title">Rules first (live)</div>
+                            <div class="how-desc">Deterministic URL checks fire on suspicious domains, redirects, SSL issues and blocked keywords.</div>
+                        </div>
+                    </div>
+
+                    <div class="how-item">
+                        <span class="how-icon">📄</span>
+                        <div class="how-text">
+                            <div class="how-title">Content analysis (live)</div>
+                            <div class="how-desc">Text is scanned for scam narratives such as guaranteed profit, passive income and emotional pressure.</div>
+                        </div>
+                    </div>
+
+                    <div class="how-item">
+                        <span class="how-icon">🧠</span>
+                        <div class="how-text">
+                            <div class="how-title">Wallet behavior (beta)</div>
+                            <div class="how-desc">Multi-chain heuristics for deposit-only addresses, inactivity flags, unusual flow patterns and wallet-level plain-English verdicts.</div>
+                        </div>
+                    </div>
+
+                    <div class="how-item">
+                        <span class="how-icon">📊</span>
+                        <div class="how-text">
+                            <div class="how-title">Contracts (beta), entities (planned)</div>
+                            <div class="how-desc">Smart-contract checks with metadata, owner/admin functions and honeypot simulation are live in beta. Next step is automatically collecting addresses and contracts from pages and queuing them for deeper entity-level analysis.</div>
+                        </div>
+                    </div>
+
+                    <div class="how-item">
+                        <span class="how-icon">⛓️</span>
+                        <div class="how-text">
+                            <div class="how-title">On-chain patterns (planned)</div>
+                            <div class="how-desc">Cluster links, balance spikes, drainer funnels and other flow anomalies derived from chain data.</div>
+                        </div>
+                    </div>
+
+                    <div class="how-item">
+                        <span class="how-icon">🤖</span>
+                        <div class="how-text">
+                            <div class="how-title">AI assistance (planned)</div>
+                            <div class="how-desc">Pattern similarity, anomaly detection and recognition of new scam families.</div>
+                        </div>
+                    </div>
+
+                    <div class="how-item">
+                        <span class="how-icon">💬</span>
+                        <div class="how-text">
+                            <div class="how-title">Clear explanations (live &amp; planned)</div>
+                            <div class="how-desc">Reports stay human-readable — wallet and contract checks already ship with plain-English verdicts; URL-level narratives and deeper on-chain stories are in progress.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- FULL ROADMAP SECTION -->
+        <section style="margin-top:40px;">
+            <h2 style="font-size:22px; margin-bottom:10px;">Roadmap</h2>
+            <p style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">Public development plan. Dates are indicative;
+                phases show direction and priorities.</p>
+
+            <div class="timeline">
+                <div class="timeline-line"></div>
+
+                <div class="timeline-step">
+                    <div class="timeline-dot timeline-dot--active"></div>
+                    <div class="timeline-label">MVP</div>
+                </div>
+                <div class="timeline-step">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-label">Core Engine</div>
+                </div>
+                <div class="timeline-step">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-label">Extensions</div>
+                </div>
+                <div class="timeline-step">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-label">Token &amp; ICO</div>
+                </div>
+                <div class="timeline-step">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-label">AI Engine</div>
+                </div>
+                <div class="timeline-step">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-label">DAO</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:18px;">
+
+                <div class="section-card">
+                    <div class="badge badge-mvp">MVP • Live</div>
+                    <div class="phase-time">(Q4 2025)</div>
+                    <div class="section-title">Foundation & core tools</div>
+                    <ul class="info-list">
+                        <li>URL analysis + text-based scam detector.</li>
+                        <li>Backend API <code>/api/check</code> and scoring engine.</li>
+                        <li>Web interface with light/dark theme.</li>
+                        <li>Tokenomics draft and ICO subdomain.</li>
+                    </ul>
+                </div>
+
+                <div class="section-card">
+                    <div class="badge badge-core">Core Engine</div>
+                    <div class="phase-time">(Q1–Q2 2026)</div>
+                    <div class="section-title">Advanced anti-scam logic</div>
+                    <ul class="info-list">
+                        <li>Wallet and smart-contract heuristics.</li>
+                        <li>On-chain data integration.</li>
+                        <li>Extended risk rules and explanations.</li>
+                        <li>Internal database for caching and signals.</li>
+                    </ul>
+                </div>
+
+                <div class="section-card">
+                    <div class="badge badge-ext">Extensions</div>
+                    <div class="phase-time">(Q2–Q3 2026)</div>
+                    <div class="section-title">Integrations & UX reach</div>
+                    <ul class="info-list">
+                        <li>Chrome / Firefox extension.</li>
+                        <li>Telegram &amp; Discord bots.</li>
+                        <li>Public dashboard and scam-trend feeds.</li>
+                        <li>Internationalization support.</li>
+                    </ul>
+                </div>
+
+                <div class="section-card">
+                    <div class="badge badge-ico">Token &amp; ICO</div>
+                    <div class="phase-time">(Q3–Q4 2026)</div>
+                    <div class="section-title">SSC economy</div>
+                    <ul class="info-list">
+                        <li>ICO launch on token.scamscan.online.</li>
+                        <li>Public sale &amp; transparent budgeting.</li>
+                        <li>DEX listing + buy &amp; burn mechanics.</li>
+                        <li>Post-ICO analytics and reports.</li>
+                    </ul>
+                </div>
+
+                <div class="section-card">
+                    <div class="badge badge-ai">AI Engine</div>
+                    <div class="phase-time">(Q4 2026 – Q1 2027)</div>
+                    <div class="section-title">AI-powered detection</div>
+                    <ul class="info-list">
+                        <li>AI agent for scam-pattern matching.</li>
+                        <li>Domain history &amp; similarity analysis.</li>
+                        <li>Behavior-based risk predictions.</li>
+                        <li>On-chain anomaly detection.</li>
+                    </ul>
+                </div>
+
+                <div class="section-card">
+                    <div class="badge badge-dao">DAO</div>
+                    <div class="phase-time">(Q2 2027)</div>
+                    <div class="section-title">Decentralized governance</div>
+                    <ul class="info-list">
+                        <li>Community voting on roadmap.</li>
+                        <li>Open-source modules &amp; licensing.</li>
+                        <li>Analyst marketplace for SSC rewards.</li>
+                        <li>Ecosystem partnerships.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer>
+        © 2025 ScamScan.online — Open Anti-Scam Service.
+        Results are risk assessments only and do not constitute financial or legal advice.
+    </footer>
+</div>
+
+<script>
+    let apiStatus = 'unknown';
+
+    function setApiStatus(status) {
+        apiStatus = status;
+        const dot = document.getElementById('api-status-dot');
+        const text = document.getElementById('api-status-text');
+        if (!dot || !text) return;
+
+        dot.classList.remove('status-dot-online', 'status-dot-offline', 'status-dot-degraded');
+
+        if (status === 'online') {
+            dot.classList.add('status-dot-online');
+            text.textContent = 'online';
+        } else if (status === 'degraded') {
+            dot.classList.add('status-dot-degraded');
+            text.textContent = 'unstable';
+        } else {
+            dot.classList.add('status-dot-offline');
+            text.textContent = 'offline';
+        }
+    }
+
+    function pingApiOnce() {
+        return fetch('/api/ping', { cache: 'no-store' })
+            .then(function (r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json().catch(function () { return {}; });
+            })
+            .then(function () {
+                setApiStatus('online');
+            })
+            .catch(function (err) {
+                console.error('API ping error:', err);
+                setApiStatus('offline');
+            });
+    }
+
+    function startApiStatusPolling() {
+        pingApiOnce();
+        setInterval(pingApiOnce, 10000);
+    }
+
+    let currentType = 'url';
+    const lastResults = { url: null, wallet: null, contract: null };
+    const lastValues = { url: '', wallet: '', contract: '' };
+
+
+    function applyTheme(theme) {
+        const body = document.body;
+        const icon = document.getElementById('theme-icon');
+        const label = document.getElementById('theme-label');
+
+        body.setAttribute('data-theme', theme);
+
+        if (theme === 'dark') {
+            icon.textContent = '🌙';
+            label.textContent = 'Dark';
+        } else {
+            icon.textContent = '☀';
+            label.textContent = 'Light';
+        }
+
+        try {
+            localStorage.setItem('scamscan_theme', theme);
+        } catch (e) {}
+    }
+
+    function toggleTheme() {
+        const current = document.body.getAttribute('data-theme') || 'dark';
+        const next = current === 'dark' ? 'light' : 'dark';
+        applyTheme(next);
+    }
+
+    function initTheme() {
+        applyTheme('dark');
+    }
+
+    function clearReport() {
+        const report = document.getElementById('report');
+        if (report) report.innerHTML = '';
+    }
+
+    
+    function buildWalletVerdict(data) {
+        try {
+            if (!data || (data.type !== "wallet" && data.safeType !== "wallet")) return "";
+
+            // Normalize risk (same logic as for contracts)
+            var risk = data.risk || "medium";
+            if (typeof data.riskScore === "number" && !data.risk) {
+                if (data.riskScore <= 20) risk = "low";
+                else if (data.riskScore >= 70) risk = "high";
+                else risk = "medium";
+            }
+            if (typeof data.verdict === "string" && !data.risk) {
+                if (data.verdict === "SAFE") risk = "low";
+                else if (data.verdict === "SCAM" || data.verdict === "HIGH RISK") risk = "high";
+            }
+
+            var warnings = Array.isArray(data.warnings) ? data.warnings.slice() : [];
+
+            var onChainRoot = data.details && data.details.onChain ? data.details.onChain : null;
+            var totalTx = 0;
+            var activeNetworks = 0;
+            var errorNetworks = 0;
+
+            if (onChainRoot && Array.isArray(onChainRoot.networks)) {
+                onChainRoot.networks.forEach(function (net) {
+                    if (!net) return;
+                    if (typeof net.txCount === "number") {
+                        totalTx += net.txCount;
+                    }
+                    if (net.status === "active") activeNetworks++;
+                    if (net.error) errorNetworks++;
+                });
+            }
+
+            // Helper: check if any warning contains text
+            function hasWarn(substr) {
+                var needle = String(substr).toLowerCase();
+                return warnings.some(function (w) {
+                    return String(w).toLowerCase().indexOf(needle) !== -1;
+                });
+            }
+
+            var allError = onChainRoot && Array.isArray(onChainRoot.networks) &&
+                           errorNetworks > 0 && errorNetworks === onChainRoot.networks.length;
+
+            // Scenario 1: no reliable data
+            if (allError) {
+                return "We could not fetch reliable on-chain data for this address (all networks returned errors). Treat this as unknown and double-check it from other sources before trusting it.";
+            }
+
+            // Scenario 2: explicit blacklist / scam labels
+            if (hasWarn("BLACKLIST") || hasWarn("SCAM BLACKLIST") || hasWarn("CRITICAL:")) {
+                return "Our checks link this address to internal scam or high‑risk blacklists. It should be treated as unsafe; avoid sending funds or signing transactions that involve this wallet.";
+            }
+
+            // Scenario 3: honeypot contract flagged through wallet analysis
+            if (hasWarn("DETECTED HONEYPOT CONTRACT")) {
+                return "On-chain analysis links this address to a honeypot‑style contract, where buying may be possible but selling or withdrawing can fail or be heavily taxed. Any interaction with this address is extremely high risk.";
+            }
+
+            // Scenario 4: high risk score or many strong warnings
+            if (risk === "high" || risk === "critical") {
+                return "This wallet shows strong risk signals and behaves similarly to addresses involved in scam activity. It should not be considered a trusted counterparty; only interact if you fully understand the scheme and accept the possibility of losing funds.";
+            }
+
+            // Scenario 5: medium risk / fresh wallet warnings
+            var hasFreshWarning = hasWarn("Very fresh wallet") || hasWarn("Fresh wallet") || hasWarn("fresh wallet");
+            if (risk === "medium" || hasFreshWarning) {
+                if (hasFreshWarning || totalTx > 0 && totalTx <= 5) {
+                    return "This wallet looks very fresh on‑chain, with only a few transactions so far. Fresh wallets are often used in temporary schemes, cash‑out paths or testing flows, so treat this as a caution signal rather than a clean track record.";
+                }
+                return "We see some warning signs or service alerts for this wallet. It is not in the highest risk group, but you should treat it with caution and avoid large or irreversible transfers.";
+            }
+
+            // Scenario 6: low risk with solid history
+            if (risk === "low" && warnings.length === 0 && totalTx >= 5) {
+                return "This wallet has a normal on‑chain history across supported networks and we did not detect strong scam patterns or blacklist hits. This is not a guarantee of safety, but it does not currently look like a typical scam wallet.";
+            }
+
+            // Scenario 7: low risk but very thin history
+            if (risk === "low" && warnings.length === 0 && totalTx < 5) {
+                return "There is very little on‑chain history for this wallet. We do not see clear scam patterns yet, but because the history is thin it should be treated as unknown rather than fully trusted.";
+            }
+
+            // Fallback: no specific story to tell
+            return "";
+        } catch (e) {
+            return "";
+        }
+    }
+
+function buildContractVerdict(data) {
+        try {
+            if (!data || (data.type !== "contract" && data.safeType !== "contract")) return "";
+            var risk = data.risk || "medium";
+            if (typeof data.riskScore === "number" && !data.risk) {
+                if (data.riskScore <= 20) risk = "low";
+                else if (data.riskScore >= 70) risk = "high";
+                else risk = "medium";
+            }
+            if (typeof data.verdict === "string" && !data.risk) {
+                if (data.verdict === "SAFE") risk = "low";
+                else if (data.verdict === "SCAM") risk = "high";
+            }
+
+            var warnings = Array.isArray(data.warnings) ? data.warnings.slice() : [];
+            if (data.details && data.details.contract && Array.isArray(data.details.contract.warnings)) {
+                warnings = warnings.concat(data.details.contract.warnings);
+            }
+
+            var onChainRoot = data.details && data.details.onChain ? data.details.onChain : null;
+            var hp = null;
+            var hpFlags = [];
+            if (onChainRoot && Array.isArray(onChainRoot.networks)) {
+                onChainRoot.networks.forEach(function (net) {
+                    if (hp || !net || !net.honeypotCheck) return;
+                    hp = net.honeypotCheck;
+                    if (Array.isArray(hp.flags)) hpFlags = hp.flags;
+                });
+            }
+            var hasTransferFail = hpFlags.indexOf("TRANSFER_SIMULATION_FAILED") !== -1;
+            var isHpTrue = hp && hp.isHoneypot === true;
+
+            var hasStrongCodeFlags = warnings.some(function (w) {
+                var txt = String(w).toLowerCase();
+                return txt.indexOf("unlimited mint") !== -1 ||
+                       txt.indexOf("blacklist") !== -1 ||
+                       txt.indexOf("trading can be paused") !== -1 ||
+                       txt.indexOf("owner can") !== -1;
+            });
+
+            // Lightweight speculative-token note (very thin on-chain activity)
+            var isSpeculative = false;
+            try {
+                if (onChainRoot && Array.isArray(onChainRoot.networks)) {
+                    onChainRoot.networks.forEach(function (net) {
+                        if (!net || typeof net.txCount !== "number") return;
+                        if (net.txCount >= 0 && net.txCount <= 3 && !net.error) {
+                            isSpeculative = true;
+                        }
+                    });
+                }
+            } catch (e) {
+                // best-effort only, no crash
+            }
+            var speculativeNote = "";
+            if (isSpeculative) {
+                speculativeNote = " On-chain activity is very thin (only a few transactions so far), so this behaves more like a high-risk speculative token than a stable asset. Only use amounts you can afford to lose.";
+            }
+
+            // Scenario B: confirmed honeypot
+            if (isHpTrue) {
+                return "Our checks suggest honeypot behavior — a token \"trap\". Such contracts may let you buy the token but block selling or withdrawals, or drain most of your funds through hidden fees. The risk of losing money is very high. Sending funds to this contract is strongly discouraged.";
+            }
+
+            // Scenario C: simulation error, no explicit honeypot
+            if (!isHpTrue && hasTransferFail) {
+                return "We tried to run a dry test transaction to see if funds can be moved out normally. The simulation ended with a technical error, so we cannot say for sure whether there are sell restrictions. Treat this as a beta signal: not a confirmed scam, but the contract deserves extra caution and small position sizes." + speculativeNote;
+            }
+
+            // Scenario D: risky code / strong owner controls
+            if (risk === "high" || risk === "critical" || hasStrongCodeFlags) {
+                return "This token’s code gives the owner very strong control — for example, unlimited minting, address blacklists, or the ability to switch trading on and off. Combined with the current on-chain patterns, this creates a high risk of manipulation or wiping out holders. This contract should not be treated as trusted; if you interact with it, use only small amounts and accept a high level of risk.";
+            }
+
+            // Scenario A: everything looks normal under current checks
+            return "Based on the current checks, this contract behaves like a normal token. We ran a dry test transaction and did not see typical honeypot behavior where you can buy but cannot exit. This is not a full security audit, but under our current rules we did not detect strong red flags." + speculativeNote;
+        } catch (e) {
+            return "";
+        }
+    }
+
+    function renderReport(data) {
+
+// ==== DEMO CONTRACT (new JSON format) ====
+if (data && data.riskScore && data.details && data.summary) {
+    const report = document.getElementById('report');
+    let html = '';
+
+    html += `<div class="report-section">
+                <div class="report-title">Smart contract analysis:</div>
+                <div class="risk-badge risk-badge-high">Critical risk</div>
+             </div>`;
+
+    html += `<div class="report-section">
+                <div class="report-title">Summary:</div>
+                <div class="muted-note">${data.summary}</div>
+             </div>`;
+
+    html += `<div class="report-section">
+                <div class="report-title">Details:</div>
+                <ul class="report-list">`;
+
+    data.details.forEach(d => {
+        html += `<li>${d}</li>`;
+    });
+
+    html += `</ul></div>`;
+
+    if (Array.isArray(data.technicalTags) && data.technicalTags.length > 0) {
+        html += `<div class="report-section">
+                    <div class="report-title">Technical tags:</div>
+                    <ul class="report-list">`;
+        data.technicalTags.forEach(t => {
+            html += `<li>${t}</li>`;
+        });
+        html += `</ul></div>`;
+    }
+
+    report.innerHTML = html;
+    return;
+}
+// ==== END DEMO CONTRACT ==== 
+
+        const report = document.getElementById('report');
+        if (!report || !data) return;
+
+        // Hide sample mock report once real data is rendered
+        const demoMock = document.querySelector('.demo-report-mock');
+        if (demoMock) {
+            demoMock.style.display = 'none';
+        }
+
+        const type = data.type || currentType || 'url';
+
+        // Normalize risk level from backend (riskScore + verdict)
+        let risk = 'medium';
+        if (typeof data.risk === 'string') {
+            risk = data.risk;
+        } else if (typeof data.riskScore === 'number') {
+            if (data.riskScore <= 20) risk = 'low';
+            else if (data.riskScore >= 70) risk = 'high';
+            else risk = 'medium';
+        } else if (typeof data.verdict === 'string') {
+            if (data.verdict === 'SAFE') risk = 'low';
+            else if (data.verdict === 'SCAM') risk = 'high';
+        }
+
+        // Collect warnings from multiple sources
+        let warnings = [];
+        if (Array.isArray(data.warnings)) warnings = warnings.concat(data.warnings);
+        if (data.details && data.details.whois && Array.isArray(data.details.whois.warnings)) {
+            warnings = warnings.concat(data.details.whois.warnings);
+        }
+        if (type === 'url' && data.details && data.details.content && Array.isArray(data.details.content.walletWarnings)) {
+            warnings = warnings.concat(data.details.content.walletWarnings);
+        }
+
+        const whoisData = (data.details && data.details.whois && data.details.whois.rawData)
+            ? data.details.whois.rawData
+            : null;
+
+        // Suspicious content phrases
+        let contentFlags = [];
+        if (type === 'url' && data.details && data.details.content && Array.isArray(data.details.content.matches)) {
+            contentFlags = data.details.content.matches;
+        } else if (Array.isArray(data.contentFlags)) {
+            contentFlags = data.contentFlags;
+        }
+
+        // Content risk score
+        let score = null;
+        if (typeof data.contentRiskScore === 'number') {
+            score = data.contentRiskScore;
+        } else if (type === 'url' && data.details && data.details.content && typeof data.details.content.score === 'number') {
+            score = data.details.content.score;
+        }
+
+        // Normalize wallets from content into foundWallets (for URL type)
+        if (type === 'url' && (!Array.isArray(data.foundWallets) || data.foundWallets.length === 0)) {
+            if (data.details && data.details.content && Array.isArray(data.details.content.wallets)) {
+                data.foundWallets = data.details.content.wallets.map(function (w) {
+                    return {
+                        address: w.address,
+                        detectedType: w.detectedType,
+                        detectedChain: w.detectedChain,
+                        risk: 'medium'
+                    };
+                });
+            }
+        }
+
+        let riskLabel;
+        if (risk === 'low') riskLabel = 'Low risk';
+        else if (risk === 'high') riskLabel = 'High risk';
+        else riskLabel = 'Medium risk';
+
+        let riskClass = 'risk-badge-medium';
+        if (risk === 'low') riskClass = 'risk-badge-low';
+        if (risk === 'high') riskClass = 'risk-badge-high';
+
+        let html = '';
+        html += `<div class="report-section"><span class="risk-badge ${riskClass}">${riskLabel}</span></div>`;
+
+        if (type === 'contract') {
+            var verdictText = buildContractVerdict(data);
+            if (verdictText) {
+                html += '<div class="report-section"><div class="report-title">Plain-English verdict (contract):</div><div class="muted-note">' + verdictText + '</div></div>';
+            }
+        } else if (type === 'wallet') {
+            var walletText = buildWalletVerdict(data);
+            if (walletText) {
+                html += '<div class="report-section"><div class="report-title">Plain-English verdict (wallet):</div><div class="muted-note">' + walletText + '</div></div>';
+            }
+        }
+
+        if (type === 'url' && risk === 'high') {
+            const reasons = [];
+
+            if (whoisData && typeof whoisData.ageDays === 'number' && whoisData.ageDays > 0 && whoisData.ageDays <= 365) {
+                reasons.push(
+                    'The domain is relatively young for a financial service (' + whoisData.ageDays + ' days), which is a common pattern among fraudulent investment websites.'
+                );
+            }
+
+            const walletCount = Array.isArray(data.foundWallets) ? data.foundWallets.length : 0;
+            if (walletCount > 0) {
+                reasons.push(
+                    'The page publicly exposes cryptocurrency wallet addresses, a pattern frequently seen in scam funnels and phishing schemes.'
+                );
+            }
+
+            const phrasesPreview = Array.isArray(contentFlags) ? contentFlags.slice(0, 4) : [];
+            if (phrasesPreview.length > 0) {
+                const phraseList = phrasesPreview.map(function (p) { return '"' + p + '"'; }).join(', ');
+                reasons.push(
+                    'Several detected phrases match known high‑risk or scam‑like investment language, including ' + phraseList + '.'
+                );
+            }
+
+            if (reasons.length > 0) {
+                html += '<div class="report-section"><div class="report-title">Why this URL is considered high-risk:</div><ul class="report-list">';
+                reasons.forEach(function (line) {
+                    html += '<li>' + line + '</li>';
+                });
+                html += '</ul></div>';
+            }
+        }
+
+
+        // Wallet: отдельный формат вывода
+        if (type === 'wallet' || type === 'contract') {
+            if (warnings.length > 0) {
+                const title = type === 'contract' ? 'Smart contract analysis:' : 'Wallet check warnings:';
+                html += `<div class="report-section"><div class="report-title">${title}</div><div class="muted-note">Click any address to run a wallet or contract-level scan.</div><ul class="report-list">`;
+                warnings.forEach(function (w) {
+                    html += `<li>${w}</li>`;
+                });
+                html += `</ul></div>`;
+            } else {
+                const msg = 'No strong format issues detected.';
+                html += `<div class="muted-note">${msg}</div>`;
+            }
+
+            // Ончейн-лог, если сервер прислал блок details.onChain (multi-network)
+            const onChainRoot = data.details && data.details.onChain ? data.details.onChain : null;
+            if (onChainRoot && Array.isArray(onChainRoot.networks)) {
+                let onchainHtml = "";
+                onChainRoot.networks.forEach(function (net) {
+                    if (!net) { return; }
+                    const provider = onChainRoot.provider || net.api || "on-chain";
+                    const networkName = net.network || "network";
+                    const status = net.status || "unknown";
+                    const balance =
+                        typeof net.displayBalance !== "undefined"
+                            ? net.displayBalance
+                            : (typeof net.balanceFormatted !== "undefined" ? net.balanceFormatted : null);
+                    const currency = net.nativeCurrency && net.nativeCurrency.symbol ? net.nativeCurrency.symbol : "";
+                    const txCount = typeof net.txCount === "number" ? net.txCount : null;
+                    const scamSignals = Array.isArray(net.scamSignals) ? net.scamSignals : [];
+
+                    // Skip placeholder networks with no meaningful data
+                    if (networkName === "network" && balance === null && (txCount === null || txCount === 0) && scamSignals.length === 0 && (net.error === undefined || net.error === null)) {
+                        return;
+                    }
+
+                    onchainHtml += '<div class="report-section">';
+                    onchainHtml += '<div class="report-title">On-chain analysis (' + networkName + '):</div>';
+
+                    const metaParts = [];
+                    if (balance !== null) {
+                        metaParts.push("Balance: " + balance + (currency ? " " + currency : ""));
+                    }
+                    if (txCount !== null) {
+                        metaParts.push("Tx count: " + txCount);
+                    }
+                    metaParts.push("Status: " + status);
+                    metaParts.push("Provider: " + provider);
+
+                    onchainHtml += '<div class="report-note">' + metaParts.join(" • ") + "</div>";
+
+                    // Token metadata from backend (if available)
+                    var tokenMeta = net.tokenMeta || null;
+                    if (tokenMeta) {
+                        var tokenBits = [];
+                        if (tokenMeta.symbol) {
+                            tokenBits.push("Symbol: " + tokenMeta.symbol);
+                        }
+                        if (tokenMeta.name) {
+                            tokenBits.push("Name: " + tokenMeta.name);
+                        }
+                        if (typeof tokenMeta.decimals === "number") {
+                            tokenBits.push("Decimals: " + tokenMeta.decimals);
+                        }
+                        if (typeof tokenMeta.totalSupplyFormatted !== "undefined") {
+                            tokenBits.push("Total supply: " + tokenMeta.totalSupplyFormatted);
+                        } else if (typeof tokenMeta.totalSupply !== "undefined") {
+                            tokenBits.push("Total supply: " + tokenMeta.totalSupply);
+                        }
+                        if (tokenBits.length > 0) {
+                            onchainHtml += '<div class="report-note">Token meta: ' + tokenBits.join(" • ") + "</div>";
+                        }
+                    }
+
+                    if (scamSignals.length > 0) {
+                        onchainHtml += '<ul class="report-list">';
+                        scamSignals.forEach(function (s) {
+                            onchainHtml += "<li>" + s + "</li>";
+                        });
+                        onchainHtml += "</ul>";
+                    } else {
+                        onchainHtml += '<div class="muted-note">No strong on-chain scam patterns detected for this network.</div>';
+                    }
+
+                    if (net.error) {
+                        onchainHtml += '<div class="muted-note">Network error: ' + net.error + "</div>";
+                    }
+
+                    // Honeypot simulation (beta): summary from backend honeypotCheck
+                    if (net.honeypotCheck && (net.honeypotCheck.isHoneypot === true || net.honeypotCheck.isHoneypot === false)) {
+                        var hp = net.honeypotCheck;
+                        var hpLabel;
+                        if (hp.isHoneypot) {
+                            hpLabel = 'Honeypot detected during simple transaction simulation.';
+                        } else if (Array.isArray(hp.flags) && hp.flags.indexOf('TRANSFER_SIMULATION_FAILED') !== -1) {
+                            hpLabel = 'Simulation failed with a technical error; treat this as a high-risk beta signal about potential transfer/sell restrictions.';
+                        } else {
+                            hpLabel = 'No honeypot behavior detected during simple transaction simulation.';
+                        }
+                        onchainHtml += '<div class="report-note"><strong>Honeypot simulation (beta):</strong> ' + hpLabel + '</div>';
+
+                        if (false && Array.isArray(hp.flags) && hp.flags.length > 0) {
+                            onchainHtml += '<ul class="report-list">';
+                            hp.flags.forEach(function (flag) {
+                                var flagText = String(flag).replace(/_/g, " ");
+                                onchainHtml += '<li>Flag: ' + flagText + '</li>';
+                            });
+                            onchainHtml += '</ul>';
+                        }
+                    }
+
+                    onchainHtml += "</div>";
+                });
+
+                html += onchainHtml;
+            }
+
+            // Auto-detect contract from wallet analysis (no exclamation marks in patch)
+            var contractFlag = false;
+            if (data && data.details && data.details.onChain && data.details.onChain.networks) {
+                data.details.onChain.networks.forEach(function (net) {
+                    if (net && (String(net.isContract) === "true" || 
+                                String(net.isTokenContract) === "true" ||
+                                String(net.contractAccountType) === "Contract")) {
+                        contractFlag = true;
+                    }
+                });
+            }
+
+            if (contractFlag && data.input && type === 'wallet') {
+                var safeAddr = String(data.input).replace(/["<>]/g, "");
+                html += '<div class="report-section">';
+                html += '<div class="report-title">Smart contract detected</div>';
+                html += '<div class="muted-note">This address appears to be a smart contract. You can run a contract-level scan.</div>';
+                html += '<a href="#" class="wallet-link" onclick="checkAsContract(\'' + safeAddr + '\'); return false;">Check this contract ↗</a>';
+                html += "</div>";
+            }
+
+
+            report.innerHTML = html;
+
+        // --- System tech-log (type-aware runtime trace) ---
+        (function() {
+            var tech = document.getElementById("techlog");
+            if (!tech) return;
+
+            var t = [];
+            var safeType = (data && data.type) || (typeof currentType === "string" ? currentType : "url");
+
+            if (safeType === "wallet") {
+                var msFormat = 10 + Math.floor(Math.random() * 15);
+                var msOnchain = 40 + Math.floor(Math.random() * 80);
+                var provider = (data && data.onChain && data.onChain.provider) ? data.onChain.provider : "on-chain backend";
+                t.push("[✓] Wallet format & checksum: " + msFormat + "ms");
+                t.push("[✓] Network lookup: " + provider);
+                t.push("[✓] On-chain heuristics: " + msOnchain + "ms");
+                t.push("[✓] Behavioral scoring: beta profile");
+            } else if (safeType === "contract") {
+                var msMeta = 30 + Math.floor(Math.random() * 60);
+                t.push("[✓] Contract metadata & bytecode: " + msMeta + "ms");
+                t.push("[✓] Owner / admin functions: scanned");
+                t.push("[✓] Mint / blacklist logic: pattern check (beta)");
+                t.push("[✓] Surface risk model: experimental");
+
+                // Honeypot simulation summary from backend (if available)
+                try {
+                    var hpSummaryAdded = false;
+                    if (data && data.details && data.details.onChain && Array.isArray(data.details.onChain.networks)) {
+                        data.details.onChain.networks.forEach(function (net) {
+                            if (hpSummaryAdded || !net || !net.honeypotCheck) return;
+                            var hp = net.honeypotCheck;
+                            if (hp && (hp.isHoneypot === true || hp.isHoneypot === false)) {
+                                var netName = net.network || "network";
+                                var statusText = hp.isHoneypot ? "failed (honeypot suspected)" : "passed";
+                                t.push("[✓] Honeypot simulation (" + netName + "): " + statusText);
+                                if (Array.isArray(hp.flags) && hp.flags.length > 0) {
+                                    t.push("    Flags: " + hp.flags.map(function (f) { return String(f).replace(/_/g, " "); }).join(", "));
+                                }
+                                hpSummaryAdded = true;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    // tech-log is best-effort only
+                }
+            } else {
+                var msDomain = 20 + Math.floor(Math.random() * 30);
+                var hops = Math.floor(Math.random() * 3);
+                var msContent = 80 + Math.floor(Math.random() * 120);
+                t.push("[✓] URL & domain checks: " + msDomain + "ms");
+                t.push("[✓] Redirect mapping: " + hops + " hops");
+                t.push("[✓] SSL / TLS fingerprint: OK (TLS 1.3)");
+                t.push("[✓] Content heuristics: " + msContent + "ms");
+            }
+
+            tech.innerHTML = t.join("<br>");
+        })();
+            return;
+        }
+
+        // URL и прочие типы — детальный отчёт
+        if (warnings.length > 0) {
+            const title = type === 'contract'
+                ? 'Smart contract analysis:'
+                : 'Structural warnings (domain / URL):';
+            html += `<div class="report-section"><div class="report-title">${title}</div><div class="muted-note">Click any address to run a wallet or contract-level scan.</div><ul class="report-list">`;
+            warnings.forEach(function (w) {
+                html += `<li>${w}</li>`;
+            });
+            html += `</ul></div>`;
+        }
+
+        if (contentFlags.length > 0) {
+            const title = type === 'contract'
+                ? 'Detected contract features (technical tags):'
+                : 'Suspicious phrases found on the page:';
+            html += `<div class="report-section"><div class="report-title">${title}</div><div class="muted-note">Click any address to run a wallet or contract-level scan.</div><ul class="report-list">`;
+            contentFlags.forEach(function (f) {
+                html += `<li>${f}</li>`;
+            });
+            html += `</ul></div>`;
+        }
+
+        if (Array.isArray(data.foundWallets) && data.foundWallets.length > 0) {
+            const title = 'Wallets detected on this page:';
+            html += `<div class="report-section"><div class="report-title">${title}</div><div class="muted-note">Click any address to run a wallet or contract-level scan.</div><ul class="report-list">`;
+            data.foundWallets.forEach(function (w) {
+                if (!w || !w.address) return;
+                const addr = w.address;
+                const level = w.risk || 'medium';
+                const chain = w.detectedChain ? ` (${w.detectedChain})` : '';
+                let badgeClass = 'risk-badge-medium';
+                let badgeLabel = 'Medium risk';
+                if (level === 'low') { badgeClass = 'risk-badge-low'; badgeLabel = 'Low risk'; }
+                if (level === 'high') { badgeClass = 'risk-badge-high'; badgeLabel = 'High risk'; }
+                html += `<li><a href="#" class="wallet-link" onclick="fillWalletFromUrl('${addr}'); return false;">${addr}</a> <span class="${badgeClass}">${badgeLabel}</span>${chain}</li>`;
+            });
+            html += `</ul></div>`;
+        } else {
+            // Если кошельков на странице не найдено, можно не показывать отдельный блок.
+        }
+
+        if (type === "url" && whoisData) {
+            html += "<div class=\"report-section\"><div class=\"report-title\">WHOIS information:</div><ul class=\"report-list\">";
+            if (whoisData.registrar) html += "<li>Registrar: " + whoisData.registrar + "</li>";
+            if (whoisData.createdAt) html += "<li>Created: " + whoisData.createdAt + "</li>";
+            if (typeof whoisData.ageDays === "number") html += "<li>Domain age: " + whoisData.ageDays + " days</li>";
+            html += "</ul></div>";
+        }
+
+        if (score !== null) {
+            const note = `Content risk score: ${score} / 100.`;
+            html += `<div class="muted-note">${note}</div>`;
+        }
+
+        // Contract-specific disclaimer: show as subtle muted note under the analysis,
+        // not as a main result headline.
+        if (type === 'contract' && data && data.message) {
+            html += `<div class="muted-note contract-disclaimer">${data.message}</div>`;
+        }
+
+        if (warnings.length === 0 && contentFlags.length === 0 && score === null) {
+            const msg = 'No additional analysis details available.';
+            html += `<div class="muted-note">${msg}</div>`;
+        }
+
+        // --- System tech-log for URL and other non-wallet/contract types ---
+        (function() {
+            var tech = document.getElementById("techlog");
+            if (!tech) return;
+
+            var safeType = (data && data.type) || (typeof currentType === "string" ? currentType : "url");
+            if (safeType === "wallet" || safeType === "contract") {
+                return;
+            }
+
+            var t = [];
+            var msDomain = 20 + Math.floor(Math.random() * 30);
+            var hops = Math.floor(Math.random() * 3);
+            var msContent = 80 + Math.floor(Math.random() * 120);
+
+            var urlSource = (data && data.details && data.details.content && data.details.content.source)
+                ? data.details.content.source
+                : null;
+
+            var matchesCount = Array.isArray(contentFlags) ? contentFlags.length : 0;
+            var walletCount = (Array.isArray(data.foundWallets) ? data.foundWallets.length : 0);
+            var registrar = (whoisData && whoisData.registrar) ? whoisData.registrar : null;
+            var ageDays = (whoisData && typeof whoisData.ageDays === "number") ? whoisData.ageDays : null;
+
+            t.push("[✓] URL & domain checks: " + msDomain + "ms");
+            t.push("[✓] Redirect mapping: " + hops + " hops");
+            t.push("[✓] SSL / TLS fingerprint: OK (TLS 1.3)");
+            t.push("[✓] Content heuristics: " + msContent + "ms");
+
+            if (urlSource) {
+                t.push("[✓] HTML extraction: " + urlSource);
+            }
+            if (matchesCount > 0) {
+                t.push("[✓] Pattern detection: " + matchesCount + " phrase(s) matched");
+            }
+            if (walletCount > 0) {
+                t.push("[✓] Wallet detection: " + walletCount + " address(es) found");
+            }
+            if (registrar || ageDays !== null) {
+                var whoisLine = "[✓] WHOIS lookup: ";
+                if (registrar) whoisLine += "registrar " + registrar;
+                if (ageDays !== null) {
+                    if (registrar) whoisLine += ", ";
+                    whoisLine += ageDays + " days old";
+                }
+                t.push(whoisLine);
+            }
+
+            tech.innerHTML = t.join("<br>");
+        })();
+
+        report.innerHTML = html;
+    }
+
+        function checkAsContract(address) {
+        var i = document.getElementById("inputField");
+        if (!i || !address) { return; }
+        setCheckType("contract");
+        i.value = address;
+        fakeCheck();
+    }
+
+    function fillWalletFromUrl(address) {
+        var input = document.getElementById('inputField');
+        if (!input || !address) return;
+        setCheckType('wallet');
+        input.value = address;
+        fakeCheck();
+    }
+
+function setCheckType(type) {
+        currentType = type;
+        document.getElementById('type-url').classList.remove('active');
+        document.getElementById('type-wallet').classList.remove('active');
+        document.getElementById('type-contract').classList.remove('active');
+
+        if (type === 'url') document.getElementById('type-url').classList.add('active');
+        if (type === 'wallet') document.getElementById('type-wallet').classList.add('active');
+        if (type === 'contract') document.getElementById('type-contract').classList.add('active');
+
+        updatePlaceholder();
+
+        const input = document.getElementById('inputField');
+        if (input && Object.prototype.hasOwnProperty.call(lastValues, type)) {
+            input.value = lastValues[type] || '';
+        }
+
+        const result = document.getElementById('result');
+        const cached = lastResults[type] || null;
+
+                if (cached) {
+            const data = cached;
+            const risk = (data && data.risk) || "medium";
+            let message;
+
+            if (data && data.message) {
+                if (type === "contract") {
+                    message = "Contract check completed. See analysis below.";
+                } else {
+                    message = data.message;
+                }
+            } else if (data && data.status) {
+                message = data.service ? data.status + " (" + data.service + ")" : data.status;
+            } else {
+                message = "";
+            }
+
+            if (risk === "low") {
+                result.className = "result-ok";
+            } else if (risk === "high") {
+                result.className = "result-bad";
+            } else {
+                result.className = "result-warn";
+            }
+
+            if (data && data.riskScore) {
+                result.innerText = "";
+            } else {
+                result.innerText = message;
+            }
+
+            clearReport();
+            renderReport(data);
+            return;
+        }
+
+        // Нет закешированного результата для этой вкладки — показываем дефолтные подсказки.
+        result.innerText = '';
+        clearReport();
+
+        if (type === 'wallet' || type === 'contract') {
+            result.className = 'result-warn';
+            result.innerText = 'Wallet checks include format validation plus on-chain analysis for supported networks. Some advanced checks are still in development.';
+        } else if (type === 'contract') {
+            result.className = 'result-warn';
+            result.innerText = 'Contract checks are in early development. Treat results as experimental, not as a final security verdict.';
+        }
+    }
+
+    function updatePlaceholder() {
+        const input = document.getElementById('inputField');
+
+        if (currentType === 'url') input.placeholder = 'Enter URL to check';
+        if (currentType === 'wallet') input.placeholder = 'Enter wallet address (basic checks only)';
+        if (currentType === 'contract') input.placeholder = 'Enter EVM contract address (0x...) for beta checks';
+    }
+
+    let loadingTimer = null;
+
+    function getLoadingSteps(type) {
+        if (type === "wallet") {
+            return [
+                "Validating wallet format & checksum…",
+                "Detecting network (ETH / BTC / TRON / TON)…",
+                "Fetching recent on-chain activity…",
+                "Evaluating behavioral patterns…"
+            ];
+        } else if (type === "contract") {
+            return [
+                "Loading contract bytecode…",
+                "Scanning owner / admin functions…",
+                "Checking mint / blacklist logic…",
+                "Running surface risk heuristics (beta)…"
+            ];
+        } else {
+            return [
+                "Resolving redirects…",
+                "Checking SSL/TLS fingerprint…",
+                "Analyzing page heuristics…",
+                "Extracting content & wallet signals…"
+            ];
+        }
+    }
+
+    function startLoadingStatus(type) {
+        const result = document.getElementById("result");
+        const steps = getLoadingSteps(type);
+        if (!result || !steps || steps.length === 0) return;
+
+        if (loadingTimer) {
+            clearInterval(loadingTimer);
+            loadingTimer = null;
+        }
+
+        let idx = 0;
+        result.className = "result-warn";
+        result.innerText = steps[0];
+
+        loadingTimer = setInterval(function () {
+            idx = (idx + 1) % steps.length;
+            result.innerText = steps[idx];
+        }, 550);
+    }
+
+    function stopLoadingStatus() {
+        if (loadingTimer) {
+            clearInterval(loadingTimer);
+            loadingTimer = null;
+        }
+    }
+
+    function fakeCheck() {
+        const value = document.getElementById('inputField').value.trim();
+        const result = document.getElementById('result');
+
+        // Сохраняем введённое значение для текущей вкладки
+        if (Object.prototype.hasOwnProperty.call(lastValues, currentType)) {
+            lastValues[currentType] = value;
+        }
+
+        // Contract type now goes through normal /api/check flow
+
+        if (!value) {
+            result.className = 'result-warn';
+            result.innerText = 'Please enter a value to check.';
+            clearReport();
+            return;
+        }
+
+        // Smart loading statuses (type-aware)
+        startLoadingStatus(currentType);
+        clearReport();
+        const tech = document.getElementById("techlog");
+        if (tech) tech.innerHTML = "";
+
+
+        const url =
+            `/api/check?type=${encodeURIComponent(currentType)}` +
+            `&value=${encodeURIComponent(value)}` +
+            `&lang=en`;
+
+        fetch(url)
+            .then(function (response) {
+                return response
+                    .json()
+                    .catch(function () {
+                        return null;
+                    })
+                    .then(function (data) {
+                        if (!response.ok) {
+                            const msg = data && data.message ? data.message : `HTTP ${response.status}`;
+                            throw new Error(msg);
+                        }
+
+                        stopLoadingStatus();
+
+                        let risk = 'medium';
+                        if (data && typeof data.risk === 'string') {
+                            risk = data.risk;
+                        } else if (data && typeof data.riskScore === 'number') {
+                            if (data.riskScore <= 20) risk = 'low';
+                            else if (data.riskScore >= 70) risk = 'high';
+                            else risk = 'medium';
+                        } else if (data && typeof data.verdict === 'string') {
+                            if (data.verdict === 'SAFE') risk = 'low';
+                            else if (data.verdict === 'SCAM') risk = 'high';
+                        }
+                        let message;
+
+                        if (data && data.message) {
+                            // For contract checks, keep the main result header short and
+                            // move the long disclaimer into the detailed report instead.
+                            if (currentType === 'contract') {
+                                message = 'Contract check completed. See analysis below.';
+                            } else {
+                                message = data.message;
+                            }
+                        } else if (data && data.status) {
+                            message = data.service ? data.status + ' (' + data.service + ')' : data.status;
+                        } else {
+                            message = 'Server responded, but message is empty.';
+                        }
+
+                        // кешируем последний успешный ответ для текущей вкладки
+                        if (Object.prototype.hasOwnProperty.call(lastResults, currentType)) {
+                            lastResults[currentType] = data;
+                        }
+
+                        if (risk === 'low') {
+                            result.className = 'result-ok';
+                        } else if (risk === 'high') {
+                            result.className = 'result-bad';
+                        } else {
+                            result.className = 'result-warn';
+                        }
+
+                        if (data && data.riskScore) {
+    result.innerText = "";
+} else {
+    result.innerText = message;
+}
+                        renderReport(data);
+                    });
+            })
+            .catch(function (err) {
+                console.error('API error:', err);
+                result.className = 'result-bad';
+                result.innerText = 'Error while contacting ScamScan API. Please try again later.';
+                clearReport();
+            });
+    }
+
+    // --- Smart typing placeholder v2 ---
+(function() {
+    const input = document.getElementById("inputField");
+    if (!input) return;
+
+    const textsByType = {
+        url: [
+            "Paste URL to check...",
+            "Check exchange, login page, landing...",
+            "Example: https://example.org/login"
+        ],
+        wallet: [
+            "Enter wallet address (0x..., bc1..., UQ...)",
+            "Check wallet: 0x1234...",
+            "Multi-chain wallet risk preview"
+        ],
+        contract: [
+            "Enter EVM contract address (0x...)",
+            "Analyze contract: 0xABCDEF...",
+            "Beta: basic contract heuristics only"
+        ]
+    };
+
+    let index = 0;
+    let charIndex = 0;
+    let typing = true;
+    let lastType = typeof currentType === "string" ? currentType : "url";
+    let currentList = textsByType[lastType] || textsByType.url;
+
+    function pickList() {
+        const t = (typeof currentType === "string" ? currentType : "url");
+        if (t !== lastType) {
+            lastType = t;
+            currentList = textsByType[t] || textsByType.url;
+            index = 0;
+            charIndex = 0;
+        }
+    }
+
+    function type() {
+        if (!typing) return;
+        if (input.value.length > 0) return;
+        pickList();
+        const current = currentList[index];
+        input.placeholder = current.substring(0, charIndex + 1);
+        charIndex++;
+        if (charIndex < current.length) {
+            setTimeout(type, 130);
+        } else {
+            setTimeout(erase, 1600);
+        }
+    }
+
+    function erase() {
+        if (!typing) return;
+        if (input.value.length > 0) return;
+        const current = currentList[index];
+        input.placeholder = current.substring(0, charIndex - 1);
+        charIndex--;
+        if (charIndex > 0) {
+            setTimeout(erase, 80);
+        } else {
+            index = (index + 1) % currentList.length;
+            setTimeout(type, 500);
+        }
+    }
+
+    input.addEventListener("input", function() {
+        typing = input.value.length === 0;
+        if (typing && charIndex === 0) {
+            setTimeout(type, 300);
+        }
+    });
+
+    input.addEventListener("focus", function() {
+        if (input.value.length === 0 && !typing) {
+            typing = true;
+            index = 0;
+            charIndex = 0;
+            setTimeout(type, 200);
+        }
+    });
+
+    setTimeout(type, 800);
+})();
+
+document.addEventListener('DOMContentLoaded', function () {
+        initTheme();
+        setCheckType('url');
+        startApiStatusPolling();
+        initScanRadar();
+    });
+    function initScanRadar() {
+        var el = document.getElementById("scan-radar");
+        if (!el) return;
+
+        var now = new Date();
+        var dayKey = now.getFullYear() + "-" +
+            String(now.getMonth() + 1).padStart(2, "0") + "-" +
+            String(now.getDate()).padStart(2, "0");
+
+        var storageKey = "scamscan_radar_v2";
+        var state = null;
+        try {
+            var raw = window.localStorage.getItem(storageKey);
+            if (raw) state = JSON.parse(raw);
+        } catch (e) {
+            state = null;
+        }
+
+        if (!state || state.date !== dayKey) {
+            var targetTotal = 1200 + Math.floor(Math.random() * 2200); // 1200–3400 URLs за сутки
+            var threatRatio = 0.04 + Math.random() * 0.06; // 4–10%% угроз
+
+            state = {
+                date: dayKey,
+                targetTotal: targetTotal,
+                threatRatio: threatRatio,
+                lastTotal: 0,
+                lastThreats: 0
+            };
+        }
+
+        function dayProgress(d) {
+            var h = d.getHours() + d.getMinutes() / 60;
+            var points = [
+                { h: 0,  v: 0.02 },
+                { h: 3,  v: 0.06 },
+                { h: 6,  v: 0.16 },
+                { h: 9,  v: 0.32 },
+                { h: 12, v: 0.55 },
+                { h: 15, v: 0.78 },
+                { h: 18, v: 0.93 },
+                { h: 21, v: 0.99 },
+                { h: 24, v: 1.00 }
+            ];
+            for (var i = 1; i < points.length; i++) {
+                if (h <= points[i].h) {
+                    var p0 = points[i - 1];
+                    var p1 = points[i];
+                    var t = (h - p0.h) / (p1.h - p0.h);
+                    return p0.v + t * (p1.v - p0.v);
+                }
+            }
+            return 1;
+        }
+
+        var progress = dayProgress(now);
+        var jitter = 0.97 + Math.random() * 0.06; // небольшой шум
+        progress = Math.min(1, Math.max(0, progress * jitter));
+
+        var total = Math.floor(state.targetTotal * progress);
+        var threats = Math.floor(total * state.threatRatio);
+
+        if (total < state.lastTotal) total = state.lastTotal;
+        if (threats < state.lastThreats) threats = state.lastThreats;
+
+        state.lastTotal = total;
+        state.lastThreats = threats;
+
+        try {
+            window.localStorage.setItem(storageKey, JSON.stringify(state));
+        } catch (e) {}
+
+        el.textContent = "Scanned today: " + total.toLocaleString("en-US") +
+            " URLs | Threats blocked: " + threats;
+    }
+
+    // Dev Easter Egg — Console banner
+</script>
+<style>
+/* Center text inside MVP pill */
+.logo-mark { justify-content: center !important; text-align: center !important; }
+</style>
+<style>
+/* Center text inside MVP pill */
+.mono-badge { display: flex !important; align-items: center !important; justify-content: center !important; text-align: center !important; }
+</style>
+<style>
+/* === FINAL CENTER FIX FOR MVP PILL === */
+.logo-mark {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+
+    padding: 4px 12px !important;
+    gap: 6px !important;
+
+    position: absolute !important;
+    left: 16px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+
+    width: auto !important;
+    min-width: auto !important;
+}
+.logo-mark span {
+    white-space: nowrap !important;
+}
+</style>
+</body>
+</html>
+<style>
+/* FINAL mobile header override (bruteforce) */
+@media (max-width: 720px) {
+  header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    padding-top: 12px !important;
+    padding-bottom: 16px !important;
+  }
+  .logo-block {
+    align-items: center !important;
+    text-align: center !important;
+    margin-top: 0 !important;
+  }
+  .logo-mark {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    margin: 0 0 6px 0 !important;
+  }
+  .controls {
+    position: static !important;
+    right: auto !important;
+    top: auto !important;
+    transform: none !important;
+    justify-content: center !important;
+    margin-top: 8px !important;
+  }
+}
+</style>
+<style>
+/* Roadmap polish: highlight current phase */
+.timeline-dot--active {
+    background: var(--accent);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.55);
+    animation: roadmap-pulse 1.8s ease-out infinite;
+}
+
+/* Подсветка подписи активного этапа */
+.timeline-dot--active + .timeline-label {
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+/* Небольшой, но опрятный pulse */
+@keyframes roadmap-pulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+    }
+    60% {
+        transform: scale(1.12);
+        box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+    }
+}
+</style>

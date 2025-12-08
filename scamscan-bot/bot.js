@@ -5,21 +5,22 @@ const { checkValue } = require('./services/apiClient');
 const { logFeedback } = require('./services/feedbackLogger');
 const { detectInputType, formatCheckResult } = require('./utils/format');
 
-const ADMIN_IDS = [373229100]; // твой Telegram ID
+// Admins (Telegram user IDs)
+const ADMIN_IDS = [373229100, 346722278]; // Артём и 346722278
 
 // ===== In-memory state & usage =====
-
 const stateByChat = {};
 const lastCheckByChat = {};
 let usage = loadUsage();
 let proUsers = loadProUsers();
 
+// ===== Helpers: dates & storage =====
 function getToday() {
   const d = new Date();
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+  return yyyy + '-' + mm + '-' + dd;
 }
 
 function loadUsage() {
@@ -45,7 +46,10 @@ function loadProUsers() {
   try {
     const raw = fs.readFileSync(config.proUsersFilePath, 'utf8');
     const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : [];
+    if (Array.isArray(arr)) {
+      return arr.map((x) => String(x));
+    }
+    return [];
   } catch (e) {
     console.error('Cannot read pro_users file, starting empty:', e.message);
     return [];
@@ -53,386 +57,522 @@ function loadProUsers() {
 }
 
 function isProUser(userId) {
-  const idNum = Number(userId);
   const idStr = String(userId);
-  return proUsers.includes(idNum) || proUsers.includes(idStr);
+  return Array.isArray(proUsers) && proUsers.includes(idStr);
 }
 
-function ensureState(chatId) {
+// Usage per day & user
+function getOrCreateUsageEntry(userId) {
+  const day = getToday();
+  const idStr = String(userId);
+  if (!usage[day]) usage[day] = {};
+  if (!usage[day][idStr]) usage[day][idStr] = { count: 0 };
+  return usage[day][idStr];
+}
+
+function getLimitInfoForUser(userId) {
+  const entry = getOrCreateUsageEntry(userId);
+  const used = entry.count || 0;
+  const maxFree = config.maxFreeChecksPerDay;
+  const remaining = Math.max(0, maxFree - used);
+  const limitReached = used >= maxFree;
+  return { entry, used, remaining, maxFree, limitReached };
+}
+
+// ===== Helpers: state & keyboards =====
+function getState(chatId) {
   const key = String(chatId);
   if (!stateByChat[key]) {
     stateByChat[key] = {
-      mode: 'auto',            // auto | url | wallet | contract
+      mode: 'auto',
       awaitingFeedback: false,
       awaitingTesterInfo: false,
-      awaitingSupport: false
+      awaitingSupport: false,
+      replyingTo: null,
     };
   }
   return stateByChat[key];
 }
 
-function checkLimit(userId) {
-  const id = String(userId);
-  const today = getToday();
-
-  if (isProUser(userId)) {
-    return { isPro: true, allowed: true, remaining: null };
-  }
-
-  if (!usage[id] || usage[id].date !== today) {
-    usage[id] = { date: today, count: 0 };
-  }
-
-  const max = config.maxFreeChecksPerDay;
-  const current = usage[id].count;
-
-  if (current >= max) {
-    return { isPro: false, allowed: false, remaining: 0 };
-  }
-
-  const newCount = current + 1;
-  usage[id].count = newCount;
-  saveUsage();
-  const remaining = max - newCount;
-
-  return { isPro: false, allowed: true, remaining };
-}
-
-// ===== Keyboards =====
-
-function mainReplyKeyboard() {
+function mainKeyboard() {
   return Markup.keyboard([
     ['🔗 URL', '👛 Wallet', '📜 Contract'],
-    ['🤖 Auto-detect', '🆘 Support']
+    ['🤖 Auto-detect', '🆘 Support'],
+    ['📊 Admin'],
   ]).resize();
 }
 
 function resultKeyboard() {
-  return Markup.inlineKeyboard([
-    [
-      Markup.button.callback('👍 All good', 'feedback_ok'),
-      Markup.button.callback('⚠️ Dispute result', 'feedback_dispute')
-    ]
-  ]);
+  return {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '👍 All good', callback_data: 'FEEDBACK_OK' }],
+        [{ text: '⚠️ Dispute result', callback_data: 'FEEDBACK_DISPUTE' }],
+      ],
+    },
+  };
 }
 
-const bot = new Telegraf(config.botToken);
+function notifyAdmins(text, replyUserId = null) {
+  ADMIN_IDS.forEach((adminId) => {
+    const id = Number(adminId);
+    const extra = { disable_web_page_preview: true };
+    
+    if (replyUserId) {
+      extra.reply_markup = {
+        inline_keyboard: [[
+          { text: '✉️ Reply to ' + replyUserId, callback_data: 'ADMIN_REPLY_' + replyUserId }
+        ]]
+      };
+    }
 
-// ===== Commands =====
+    bot.telegram
+      .sendMessage(id, text, extra)
+      .catch((err) => {
+        console.error('Failed to notify admin', adminId, err.message);
+      });
+  });
+}
 
-// /start
-bot.start((ctx) => {
-  const chatId = ctx.chat.id;
-  const state = ensureState(chatId);
-  state.mode = 'auto';
-  state.awaitingFeedback = false;
-  state.awaitingTesterInfo = false;
-  state.awaitingSupport = false;
+// ===== Admin helpers =====
+async function sendBotStats(ctx) {
+  if (!ensureAdmin(ctx)) return;
 
-  const text =
-    'Hi! I am the Telegram bot for ScamScan (beta, for early testers).\n\n' +
-    'Send me a URL, wallet address or contract address and I will call the ScamScan engine and return a risk assessment.\n\n' +
-    'You can:\n' +
-    '• Just paste what you want to check and let me auto-detect the type\n' +
-    '• Or use the keyboard below to explicitly choose URL / wallet / contract.';
-
-  return ctx.reply(text, mainReplyKeyboard());
-});
-
-// /help
-bot.help((ctx) => {
-  const text =
-    'ScamScan bot:\n\n' +
-    '1) Accepts URLs, wallet addresses and contract addresses\n' +
-    '2) Detects the type (or uses the selected mode)\n' +
-    '3) Calls https://scamscan.online/api/check\n' +
-    '4) Returns risk level and a short explanation.\n\n' +
-    'Commands:\n' +
-    '/start  — restart bot and show main menu\n' +
-    '/tester — apply for PRO tester (no daily limits)\n' +
-    '/whoami — show your Telegram ID\n' +
-    '/support — send a message to the ScamScan team.';
-  return ctx.reply(text, mainReplyKeyboard());
-});
-
-// /tester — PRO application
-bot.command('tester', (ctx) => {
-  const chatId = ctx.chat.id;
-  const state = ensureState(chatId);
-  state.awaitingTesterInfo = true;
-  state.awaitingFeedback = false;
-  state.awaitingSupport = false;
-
-  const text =
-    'In one message, tell me how you plan to use ScamScan and why you need a PRO account.\n' +
-    'I will log this as a tester application. PRO access is granted manually.';
-  return ctx.reply(text);
-});
-
-// /whoami — show user ID
-bot.command('whoami', (ctx) => {
-  const u = ctx.from;
-  const username = u.username ? '@' + u.username : '(no username)';
-  const msg =
-    'Your Telegram ID: `' + u.id + '`' +
-    '\nUsername: ' + username;
-  return ctx.reply(msg, { parse_mode: 'Markdown' });
-});
-
-// /support — user writes to team
-bot.command('support', (ctx) => {
-  const chatId = ctx.chat.id;
-  const state = ensureState(chatId);
-  state.awaitingSupport = true;
-  state.awaitingFeedback = false;
-  state.awaitingTesterInfo = false;
-
-  const text =
-    'Send one message describing your question or issue.\n' +
-    'It will be forwarded to the ScamScan team.';
-  return ctx.reply(text);
-});
-
-// /reply <chatId> <message> — admin replies from bot (запасной вариант)
-bot.command('reply', async (ctx) => {
-  const fromId = ctx.from.id;
-  if (!ADMIN_IDS.includes(fromId)) {
-    return ctx.reply('You are not allowed to use this command.');
-  }
-
-  const text = (ctx.message.text || '').trim();
-  const parts = text.split(' ').slice(1); // skip "/reply"
-
-  if (parts.length < 2) {
-    return ctx.reply('Usage: /reply <chatId> <message>');
-  }
-
-  const targetChatId = parts[0];
-  const replyText = parts.slice(1).join(' ');
-
-  try {
-    await ctx.telegram.sendMessage(targetChatId, replyText, { parse_mode: 'Markdown' });
-    return ctx.reply('Reply sent.');
-  } catch (err) {
-    console.error('Failed to send reply:', err);
-    return ctx.reply('Failed to send reply: ' + (err.message || 'unknown error'));
-  }
-});
-
-// ===== Feedback buttons =====
-
-bot.action('feedback_ok', (ctx) => {
-  ctx.answerCbQuery('Thanks!').catch(() => {});
-  return ctx.reply('Got it, thanks. If a result ever looks wrong, tap "Dispute result" and describe the issue.');
-});
-
-bot.action('feedback_dispute', (ctx) => {
-  const chatId = ctx.chat.id;
-  const state = ensureState(chatId);
-  state.awaitingFeedback = true;
-  state.awaitingTesterInfo = false;
-  state.awaitingSupport = false;
-
-  ctx.answerCbQuery('Waiting for your comment').catch(() => {});
-  const text =
-    'Send one message describing what looks wrong about this assessment (why you think it is incorrect).\n' +
-    'I will log it as feedback to improve ScamScan.';
-  return ctx.reply(text);
-});
-
-// ===== Main text handler =====
-
-bot.on('text', async (ctx) => {
-  const chatId = ctx.chat.id;
-  const userId = ctx.from.id;
-  const rawText = ctx.message.text || '';
-  const text = rawText.trim();
-  if (!text) return;
-
-  const isAdmin = ADMIN_IDS.includes(userId);
-
-  // 0) Admin reply via Telegram "Reply" на support-сообщение
-  if (isAdmin && ctx.message.reply_to_message && ctx.message.reply_to_message.text) {
-    const originalText = ctx.message.reply_to_message.text;
-    const match = originalText.match(/chatId:\s*(-?\d+)/);
-    if (match && match[1]) {
-      const targetChatId = match[1];
-      try {
-        await ctx.telegram.sendMessage(targetChatId, text, { parse_mode: 'Markdown' });
-        return ctx.reply('Reply sent.');
-      } catch (err) {
-        console.error('Failed to send reply via reply-to:', err);
-        return ctx.reply('Failed to send reply: ' + (err.message || 'unknown error'));
+  const allDays = Object.keys(usage || {});
+  const seenUsers = new Set();
+  let totalChecksToday = 0;
+  const today = getToday();
+  for (const day of allDays) {
+    const dayUsage = usage[day] || {};
+    for (const userId of Object.keys(dayUsage)) {
+      seenUsers.add(userId);
+      const entry = dayUsage[userId];
+      if (day === today && entry && typeof entry.count === 'number') {
+        totalChecksToday += entry.count;
       }
     }
   }
 
-  // команды уже обработаны своими handlers
-  if (text.startsWith('/')) return;
+  const totalUsers = seenUsers.size;
+  const proCount = Array.isArray(proUsers) ? proUsers.length : 0;
+  
+  const msg = 
+    '<b>📊 ScamScan Stats:</b>\n' +
+    '• Users total: ' + totalUsers + '\n' +
+    '• PRO users: ' + proCount + '\n' +
+    '• Checks today: ' + totalChecksToday;
+    
+  await ctx.reply(msg, { parse_mode: 'HTML' });
+}
 
-  const state = ensureState(chatId);
+function getAdminHelpText() {
+  return (
+    '<b>🛠 Admin Panel Commands:</b>\n\n' +
+    '📊 <b>/stats</b> — Show bot statistics\n' +
+    '📜 <b>/prolist</b> — List all PRO users\n' +
+    '👑 <b>/setpro ID</b> — Grant PRO status\n' +
+    '🚫 <b>/unsetpro ID</b> — Revoke PRO status\n' +
+    '🔄 <b>/resetlimit ID</b> — Reset daily limit\n' +
+    '✉️ <b>/reply ID text</b> — Manual reply without button'
+  );
+}
 
-  // 1) Support flow
-  if (state.awaitingSupport) {
-    state.awaitingSupport = false;
+function ensureAdmin(ctx) {
+  const from = ctx.from || {};
+  const idNum = Number(from.id);
+  const idStr = String(from.id);
+  if (!ADMIN_IDS.includes(idNum) && !ADMIN_IDS.includes(idStr)) {
+    return false;
+  }
+  return true;
+}
 
-    logFeedback({
-      chatId,
-      username: ctx.from.username,
-      input: null,
-      inputType: 'support',
-      apiResponse: null,
-      feedbackText: text
-    });
-
-    const u = ctx.from;
-    const username = u.username ? '@' + u.username : (u.first_name || 'user');
-    const header =
-      'Support message from ' + username +
-      ' (id: ' + u.id + ', chatId: ' + chatId + '):';
-
-    const body = header + '\n\n' + text;
-
-    try {
-      await Promise.all(
-        ADMIN_IDS.map((adminId) =>
-          ctx.telegram.sendMessage(adminId, body)
-        )
-      );
-    } catch (err) {
-      console.error('Failed to forward support message:', err);
+function resetUserLimitById(userId) {
+  const idStr = String(userId);
+  let changed = false;
+  const allDays = Object.keys(usage || {});
+  for (const day of allDays) {
+    const dayUsage = usage[day] || {};
+    if (Object.prototype.hasOwnProperty.call(dayUsage, idStr)) {
+      delete dayUsage[idStr];
+      changed = true;
     }
-
-    return ctx.reply('Thanks, your message was sent to the ScamScan team.');
   }
+  if (changed) saveUsage();
+  return changed;
+}
 
-  // 2) Feedback flow (dispute result)
-  if (state.awaitingFeedback && lastCheckByChat[String(chatId)]) {
-    state.awaitingFeedback = false;
-    const last = lastCheckByChat[String(chatId)];
-
-    logFeedback({
-      chatId,
-      username: ctx.from.username,
-      input: last.input,
-      inputType: last.type,
-      apiResponse: last.apiResponse,
-      feedbackText: text
-    });
-
-    return ctx.reply('Thanks, your feedback has been recorded. Real-world cases like this help improve ScamScan.');
-  }
-
-  // 3) Tester application flow
-  if (state.awaitingTesterInfo) {
-    state.awaitingTesterInfo = false;
-
-    logFeedback({
-      chatId,
-      username: ctx.from.username,
-      input: null,
-      inputType: 'tester',
-      apiResponse: null,
-      feedbackText: text
-    });
-
-    return ctx.reply('Tester application saved. PRO access will be granted manually to active users.');
-  }
-
-  // 4) Quick mode switches via reply keyboard (включая Support)
-  if (text === '🔗 URL' || text.toLowerCase() === 'url') {
-    state.mode = 'url';
-    state.awaitingFeedback = false;
-    state.awaitingTesterInfo = false;
-    state.awaitingSupport = false;
-    return ctx.reply('Mode set to URL check. Send the link you want to scan.');
-  }
-
-  if (text === '👛 Wallet' || text.toLowerCase() === 'wallet') {
-    state.mode = 'wallet';
-    state.awaitingFeedback = false;
-    state.awaitingTesterInfo = false;
-    state.awaitingSupport = false;
-    return ctx.reply('Mode set to wallet check. Send the wallet address.');
-  }
-
-  if (text === '📜 Contract' || text.toLowerCase() === 'contract') {
-    state.mode = 'contract';
-    state.awaitingFeedback = false;
-    state.awaitingTesterInfo = false;
-    state.awaitingSupport = false;
-    return ctx.reply('Mode set to contract check (EVM). Send a contract address like 0x....');
-  }
-
-  if (text === '🤖 Auto-detect' || text.toLowerCase() === 'auto' || text.toLowerCase() === 'auto-detect') {
-    state.mode = 'auto';
-    state.awaitingFeedback = false;
-    state.awaitingTesterInfo = false;
-    state.awaitingSupport = false;
-    return ctx.reply('Mode set to auto-detect. Send any URL, wallet or contract.');
-  }
-
-  if (text === '🆘 Support' || text.toLowerCase() === 'support') {
-    state.awaitingSupport = true;
-    state.awaitingFeedback = false;
-    state.awaitingTesterInfo = false;
-    return ctx.reply(
-      'Send one message describing your question or issue.\n' +
-      'It will be forwarded to the ScamScan team.'
-    );
-  }
-
-  // 5) Normal check
-  const mode = state.mode || 'auto';
-  const forcedType = mode === 'auto' ? null : mode;
-  const inputType = detectInputType(text, forcedType);
-
-  const limitInfo = checkLimit(userId);
-  if (!limitInfo.allowed) {
-    return ctx.reply(
-      'You have reached today\'s free check limit.\n\n' +
-      'Active testers may get PRO access with no limits. Use /tester to send a short application.'
-    );
-  }
-
+function persistProUsers() {
   try {
-    await ctx.sendChatAction('typing');
+    fs.writeFileSync(config.proUsersFilePath, JSON.stringify(proUsers, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Cannot write pro_users file:', e.message);
+  }
+}
 
-    const apiResult = await checkValue(inputType, text);
-
-    if (!apiResult.ok) {
-      return ctx.reply(
-        'Failed to get a response from the ScamScan API: ' +
-        (apiResult.error || 'unknown error') +
-        '\n\nTry again later or check directly on https://scamscan.online'
-      );
+function setProFlag(userId, flag) {
+  const idStr = String(userId);
+  if (!Array.isArray(proUsers)) proUsers = [];
+  
+  const idx = proUsers.indexOf(idStr);
+  let changed = false;
+  if (flag) {
+    if (idx === -1) {
+      proUsers.push(idStr);
+      changed = true;
     }
+  } else {
+    if (idx !== -1) {
+      proUsers.splice(idx, 1);
+      changed = true;
+    }
+  }
+  if (changed) persistProUsers();
+  return flag;
+}
 
-    lastCheckByChat[String(chatId)] = {
-      input: text,
-      type: inputType,
-      apiResponse: apiResult.data
-    };
+// ===== Bot init =====
+const bot = new Telegraf(config.botToken);
 
-    const message = formatCheckResult({
-      type: inputType,
-      input: text,
-      data: apiResult.data,
-      isPro: limitInfo.isPro,
-      remaining: limitInfo.remaining,
-      maxFree: config.maxFreeChecksPerDay
-    });
+// ===== Commands: public =====
+bot.start(async (ctx) => {
+  const chatId = ctx.chat.id;
+  const state = getState(chatId);
+  state.mode = 'auto';
+  state.awaitingFeedback = false;
+  state.awaitingTesterInfo = false;
+  state.awaitingSupport = false;
+  state.replyingTo = null;
+  const text = `Hi! I am the Telegram bot for ScamScan (beta, for early testers).\n\nSend me a URL, wallet address or contract address and I will call the ScamScan engine and return a risk assessment.\n\nYou can:\n\n• Just paste what you want to check and let me auto-detect the type\n\n• Or use the keyboard below to explicitly choose URL / wallet / contract.`;
+  await ctx.reply(text, mainKeyboard());
+});
 
-    const kb = resultKeyboard();
-    return ctx.reply(message, { parse_mode: 'Markdown', reply_markup: kb.reply_markup });
-  } catch (err) {
-    console.error('Unexpected bot error:', err);
-    return ctx.reply('Service is temporarily unavailable or an internal error occurred. Please try again a bit later.');
+bot.command('help', async (ctx) => {
+  const text =
+    'How to use ScamScan bot:\n\n' +
+    '1) Paste a URL, wallet or contract.\n' +
+    '2) I will analyze it using ScamScan and return a short risk summary.\n\n' +
+    'Feedback is welcome via the 🆘 Support button.';
+  await ctx.reply(text, mainKeyboard());
+});
+
+bot.command('whoami', async (ctx) => {
+  const from = ctx.from || {};
+  const parts = [
+    'Telegram user info:',
+    'id: ' + from.id,
+    from.username ? 'username: @' + from.username : null,
+  ].filter(Boolean);
+  await ctx.reply(parts.join('\n'));
+});
+
+bot.command('tester', async (ctx) => {
+  const chatId = ctx.chat.id;
+  const state = getState(chatId);
+  state.awaitingTesterInfo = true;
+  await ctx.reply(
+    'To apply for PRO tester access, send a short message about yourself.',
+    mainKeyboard()
+  );
+});
+
+bot.command('support', async (ctx) => {
+  const chatId = ctx.chat.id;
+  const state = getState(chatId);
+  state.awaitingSupport = true;
+  await ctx.reply(
+    'Please describe your question or issue.',
+    mainKeyboard()
+  );
+});
+
+// ===== Commands: admin =====
+bot.command('stats', async (ctx) => {
+  if (!ensureAdmin(ctx)) return;
+  await sendBotStats(ctx);
+});
+
+bot.command('admin', async (ctx) => {
+  if (!ensureAdmin(ctx)) return;
+  await ctx.reply(getAdminHelpText(), { parse_mode: 'HTML' });
+});
+
+bot.command('resetlimit', async (ctx) => {
+  if (!ensureAdmin(ctx)) return;
+  const msgText = (ctx.message && ctx.message.text) || '';
+  const parts = msgText.trim().split(/\s+/);
+  const userId = parts[1];
+  if (!userId || !/^\d+$/.test(userId)) {
+    await ctx.reply('Usage: /resetlimit <telegramUserId>');
+    return;
+  }
+  const changed = resetUserLimitById(userId);
+  if (changed) {
+    await ctx.reply('✅ Limit reset for ' + userId);
+  } else {
+    await ctx.reply('⚠️ No usage found for ' + userId);
   }
 });
 
-// ===== Launch bot =====
+bot.command('setpro', async (ctx) => {
+  if (!ensureAdmin(ctx)) return;
+  const msgText = (ctx.message && ctx.message.text) || '';
+  const parts = msgText.trim().split(/\s+/);
+  const userId = parts[1];
+  if (!userId || !/^\d+$/.test(userId)) {
+    await ctx.reply('Usage: /setpro <telegramUserId>');
+    return;
+  }
+  setProFlag(userId, true);
+  await ctx.reply('✅ User ' + userId + ' is now PRO.');
+});
 
+bot.command('unsetpro', async (ctx) => {
+  if (!ensureAdmin(ctx)) return;
+  const msgText = (ctx.message && ctx.message.text) || '';
+  const parts = msgText.trim().split(/\s+/);
+  const userId = parts[1];
+  if (!userId || !/^\d+$/.test(userId)) {
+    await ctx.reply('Usage: /unsetpro <telegramUserId>');
+    return;
+  }
+  setProFlag(userId, false);
+  await ctx.reply('ℹ️ User ' + userId + ' is now regular.');
+});
+
+bot.command('prolist', async (ctx) => {
+  if (!ensureAdmin(ctx)) return;
+  const ids = proUsers || [];
+  if (ids.length === 0) {
+    await ctx.reply('No PRO users yet.');
+    return;
+  }
+  const lines = ids.map((id) => '- ' + id);
+  const msg = '<b>PRO users (' + ids.length + '):</b>\n' + lines.join('\n');
+  await ctx.reply(msg, { parse_mode: 'HTML' });
+});
+
+bot.command('reply', async (ctx) => {
+  if (!ensureAdmin(ctx)) return;
+  const text = (ctx.message && ctx.message.text) || '';
+  const match = text.match(/^\/reply\s+(\d+)\s+([\s\S]+)/);
+  if (!match) {
+    await ctx.reply('Usage: /reply hatId> <message>');
+    return;
+  }
+  const chatId = match[1];
+  const replyText = match[2];
+  try {
+    await bot.telegram.sendMessage(chatId, '📩 <b>Support reply:</b>\n\n' + replyText, { parse_mode: 'HTML' });
+    await ctx.reply('✅ Sent to ' + chatId);
+  } catch (err) {
+    await ctx.reply('❌ Error: ' + err.message);
+  }
+});
+
+// ===== Keyboard buttons handlers =====
+bot.hears('🔗 URL', async (ctx) => {
+  const state = getState(ctx.chat.id);
+  state.mode = 'url';
+  await ctx.reply('Mode: URL check. Send link.', mainKeyboard());
+});
+
+bot.hears('👛 Wallet', async (ctx) => {
+  const state = getState(ctx.chat.id);
+  state.mode = 'wallet';
+  await ctx.reply('Mode: Wallet check. Send address.', mainKeyboard());
+});
+
+bot.hears('📜 Contract', async (ctx) => {
+  const state = getState(ctx.chat.id);
+  state.mode = 'contract';
+  await ctx.reply('Mode: Contract check. Send address.', mainKeyboard());
+});
+
+bot.hears('🤖 Auto-detect', async (ctx) => {
+  const state = getState(ctx.chat.id);
+  state.mode = 'auto';
+  await ctx.reply('Mode: Auto-detect.', mainKeyboard());
+});
+
+bot.hears('🆘 Support', async (ctx) => {
+  const state = getState(ctx.chat.id);
+  state.awaitingSupport = true;
+  await ctx.reply('Please describe your question or issue.', mainKeyboard());
+});
+
+// ===== Feedback & Admin Reply callbacks =====
+bot.action('FEEDBACK_OK', async (ctx) => {
+  try { await ctx.answerCbQuery('Thanks!'); } catch (e) {}
+  logFeedback({ type: 'rating', rating: 'ok', from: ctx.from });
+});
+
+bot.action('FEEDBACK_DISPUTE', async (ctx) => {
+  try { await ctx.answerCbQuery('Send details'); } catch (e) {}
+  const state = getState(ctx.chat.id);
+  state.awaitingFeedback = true;
+  await ctx.reply('Describe the issue in next message.');
+});
+
+bot.action(/^ADMIN_REPLY_(\d+)$/, async (ctx) => {
+  if (!ensureAdmin(ctx)) return;
+  const userId = ctx.match[1];
+  const state = getState(ctx.chat.id);
+  state.replyingTo = userId;
+  await ctx.reply('📝 Write your reply for user ' + userId + ':', mainKeyboard());
+  try { await ctx.answerCbQuery(); } catch (e) {}
+});
+
+// ===== Main text handler =====
+bot.on('text', async (ctx) => {
+  const msg = ctx.message || {};
+  const text = (msg.text || '').trim();
+  const chatId = ctx.chat.id;
+  const from = ctx.from || {};
+  const state = getState(chatId);
+
+  if (text.startsWith('/')) return;
+
+  // Admin Button
+  if (text === '📊 Admin') {
+    if (!ensureAdmin(ctx)) return;
+    await sendBotStats(ctx);
+    return ctx.reply(getAdminHelpText(), { parse_mode: 'HTML' });
+  }
+  
+  // Admin Reply
+  if (state.replyingTo) {
+    const targetId = state.replyingTo;
+    state.replyingTo = null; 
+    try {
+      await bot.telegram.sendMessage(targetId, '📩 <b>Support reply:</b>\n\n' + text, { parse_mode: 'HTML' });
+      await ctx.reply('✅ Reply sent to user ' + targetId);
+      notifyAdmins(`Admin ${from.id} replied to ${targetId}: "${text}"`);
+    } catch (err) {
+      await ctx.reply('❌ Failed to send reply: ' + err.message);
+    }
+    return;
+  }
+
+  // 1) Dispute
+  if (state.awaitingFeedback) {
+    state.awaitingFeedback = false;
+    logFeedback({ type: 'dispute', from, message: text });
+    await ctx.reply('Thanks, feedback recorded.');
+    return;
+  }
+
+  // 2) PRO request
+  if (state.awaitingTesterInfo) {
+    state.awaitingTesterInfo = false;
+    logFeedback({ type: 'tester_request', from, message: text });
+    const info = `New PRO request from @${from.username} (${from.id}):\n\n${text}`;
+    notifyAdmins(info, from.id);
+    await ctx.reply('Request sent to team.');
+    return;
+  }
+
+  // 3) Support
+  if (state.awaitingSupport) {
+    state.awaitingSupport = false;
+    logFeedback({ type: 'support', from, message: text });
+    const info = `Support msg from @${from.username} (${from.id}):\n\n${text}`;
+    notifyAdmins(info, from.id);
+    await ctx.reply('Message sent to support.');
+    return;
+  }
+
+  // --- PROTECTION: FILTER JUNK TEXT ---
+  // If text has cyrillic OR spaces (and not URL) -> treat as chatter, reject.
+  const hasCyrillic = /[а-яА-ЯёЁ]/.test(text);
+  const hasSpaces = /\s/.test(text);
+  
+  // Simpleheuristic: Real wallets/contracts/domains don't have spaces.
+  // (Unless it's a seed phrase, but we ignore them for safety anyway)
+  if (hasCyrillic || hasSpaces) {
+    await ctx.reply(
+      'I didn\'t recognize a wallet or URL in your message.\n\n' +
+      '• To check an address: send just the address (no spaces).\n' +
+      '• To contact support: click 🆘 Support.'
+    );
+    return;
+  }
+  // ------------------------------------
+
+// 4) Check (API)
+const forcedMode = state.mode;
+const mode = forcedMode && forcedMode !== 'auto' ? forcedMode : null;
+const inputType = detectInputType(text, mode);
+const typeLabel = inputType || 'wallet';
+const userId = from.id;
+const pro = isProUser(userId);
+
+let limitInfo = null;
+let entry = null;
+
+// Soft counting: we always track usage but do NOT block free users yet.
+const limit = getLimitInfoForUser(userId);
+entry = limit.entry;
+
+let apiResult;
+
+try {
+  apiResult = await checkValue(typeLabel, text);
+} catch (err) {
+  console.error('API Error:', err);
+  await ctx.reply('Service temporarily unavailable.');
+  return;
+}
+
+if (entry) {
+  entry.count = (entry.count || 0) + 1;
+  saveUsage();
+  const li2 = getLimitInfoForUser(userId);
+  limitInfo = {
+    used: li2.used,
+    remaining: li2.remaining,
+    maxFree: li2.maxFree,
+  };
+}
+
+// Normalize API result for formatter: unwrap common wrappers like { status, data }, { result }, etc.
+let coreData = apiResult;
+if (coreData && typeof coreData === 'object') {
+  if (coreData.data && typeof coreData.data === 'object') {
+    coreData = coreData.data;
+  } else if (coreData.result && typeof coreData.result === 'object') {
+    coreData = coreData.result;
+  } else if (coreData.payload && typeof coreData.payload === 'object') {
+    coreData = coreData.payload;
+  }
+}
+
+const message = formatCheckResult({
+  type: typeLabel,
+  input: text,
+  data: coreData,
+  isPro: pro,
+  remaining: limitInfo ? limitInfo.remaining : null,
+  maxFree: limitInfo ? limitInfo.maxFree : null,
+});
+
+lastCheckByChat[String(chatId)] = {
+  time: new Date().toISOString(),
+  input: text,
+  type: typeLabel,
+  result: apiResult,
+};
+
+const kb = resultKeyboard();
+await ctx.reply(message, {
+  parse_mode: 'Markdown',
+  reply_markup: kb.reply_markup,
+  disable_web_page_preview: false,
+});
+
+});
+
+// ===== Launch =====
 bot.launch()
   .then(() => console.log('ScamScan Telegram bot started'))
   .catch((err) => console.error('Failed to launch bot:', err));

@@ -1617,6 +1617,18 @@ if (data && data.riskScore && data.details && data.summary) {
 
         const type = data.type || currentType || 'url';
 
+        // Detect cases where a smart contract is pasted into the Wallet tab
+        let walletIsSmartContract = false;
+        if (type === 'wallet' && data && data.details && data.details.onChain && Array.isArray(data.details.onChain.networks)) {
+            data.details.onChain.networks.forEach(function (net) {
+                if (net && (String(net.isContract) === "true" ||
+                            String(net.isTokenContract) === "true" ||
+                            String(net.contractAccountType) === "Contract")) {
+                    walletIsSmartContract = true;
+                }
+            });
+        }
+
         // Normalize risk level from backend (riskScore + verdict)
         let risk = 'medium';
         if (typeof data.risk === 'string') {
@@ -1639,6 +1651,19 @@ if (data && data.riskScore && data.details && data.summary) {
         if (type === 'url' && data.details && data.details.content && Array.isArray(data.details.content.walletWarnings)) {
             warnings = warnings.concat(data.details.content.walletWarnings);
         }
+
+        // Normalize + deduplicate warnings
+        warnings = warnings
+            .map(function (w) { return (w || "").toString().trim(); })
+            .filter(function (w) { return !!w; });
+        (function () {
+            const seen = {};
+            warnings = warnings.filter(function (w) {
+                if (seen[w]) return false;
+                seen[w] = true;
+                return true;
+            });
+        })();
 
         const whoisData = (data.details && data.details.whois && data.details.whois.rawData)
             ? data.details.whois.rawData
@@ -1682,6 +1707,30 @@ if (data && data.riskScore && data.details && data.summary) {
         let riskClass = 'risk-badge-medium';
         if (risk === 'low') riskClass = 'risk-badge-low';
         if (risk === 'high') riskClass = 'risk-badge-high';
+
+        // Special handling: when a smart contract is checked from the Wallet tab,
+        // show a short contract-focused summary and point the user to the Contract tab.
+        if (type === 'wallet' && walletIsSmartContract) {
+            let html = '';
+            html += `<div class="report-section"><span class="risk-badge ${riskClass}">${riskLabel}</span></div>`;
+
+            var contractVerdict = buildContractVerdict(data);
+            if (contractVerdict) {
+                html += '<div class="report-section"><div class="report-title">Plain-English verdict (contract):</div><div class="muted-note">' + contractVerdict + '</div></div>';
+            }
+
+            if (data && data.input) {
+                var safeAddr = String(data.input).replace(/["<>]/g, '');
+                html += '<div class="report-section">';
+                html += '<div class="report-title">Smart contract detected</div>';
+                html += '<div class="muted-note">This address is a smart contract, not a typical wallet. For full details, run a contract-level scan.</div>';
+                html += '<a href="#" class="wallet-link" onclick="checkAsContract(\'' + safeAddr + '\'); return false;">Check this contract ↗</a>';
+                html += '</div>';
+            }
+
+            report.innerHTML = html;
+            return;
+        }
 
         let html = '';
         html += `<div class="report-section"><span class="risk-badge ${riskClass}">${riskLabel}</span></div>`;
@@ -1731,12 +1780,52 @@ if (data && data.riskScore && data.details && data.summary) {
             }
         }
 
+        // Low‑risk URLs with content: explain why they look low‑risk
+        if (type === 'url' && risk === 'low') {
+            var content = (data.details && data.details.content) ? data.details.content : null;
+            var hasContent = content && !content.error && content.source && content.source !== 'failed';
+
+            if (hasContent) {
+                var positives = [];
+                var hasPhrases = Array.isArray(contentFlags) && contentFlags.length > 0;
+                var walletCount = Array.isArray(data.foundWallets) ? data.foundWallets.length : 0;
+                var ageDays = (whoisData && typeof whoisData.ageDays === 'number') ? whoisData.ageDays : null;
+                var registrarRiskScore = (whoisData && typeof whoisData.registrarRiskScore === 'number')
+                    ? whoisData.registrarRiskScore
+                    : null;
+
+                if (!hasPhrases) {
+                    positives.push('We did not detect common scam-like phrases in the visible page content.');
+                }
+                if (!walletCount) {
+                    positives.push('We did not find crypto wallet addresses publicly exposed on the landing page.');
+                }
+                if (ageDays !== null && ageDays > 0) {
+                    positives.push('WHOIS shows a registered domain (' + ageDays + ' days old).');
+                }
+                if (registrarRiskScore === 0) {
+                    positives.push('WHOIS data providers did not flag this domain with any specific risk score.');
+                }
+
+                if (positives.length > 0) {
+                    html += '<div class="report-section"><div class="report-title">Why this URL currently looks low-risk:</div><ul class="report-list">';
+                    positives.slice(0, 4).forEach(function (p) {
+                        html += '<li>' + p + '</li>';
+                    });
+                    html += '</ul></div>';
+                }
+            }
+        }
+
 
         // Wallet: отдельный формат вывода
         if (type === 'wallet' || type === 'contract') {
             if (warnings.length > 0) {
                 const title = type === 'contract' ? 'Smart contract analysis:' : 'Wallet check warnings:';
-                html += `<div class="report-section"><div class="report-title">${title}</div><div class="muted-note">Click any address to run a wallet or contract-level scan.</div><ul class="report-list">`;
+                html += `<div class="report-section">
+                    <div class="report-title">${title}</div>
+                    <div class="muted-note">Issues and heuristics related to this wallet or contract. Click any address in the report to run a deeper scan.</div>
+                    <ul class="report-list">`;
                 warnings.forEach(function (w) {
                     html += `<li>${w}</li>`;
                 });
@@ -1937,7 +2026,7 @@ if (data && data.riskScore && data.details && data.summary) {
             const title = type === 'contract'
                 ? 'Smart contract analysis:'
                 : 'Structural warnings (domain / URL):';
-            html += `<div class="report-section"><div class="report-title">${title}</div><div class="muted-note">Click any address to run a wallet or contract-level scan.</div><ul class="report-list">`;
+            html += `<div class="report-section"><div class="report-title">${title}</div><div class="muted-note">Details related to this section. Review these items carefully; some patterns may be associated with scams or high-risk schemes.</div><ul class="report-list">`;
             warnings.forEach(function (w) {
                 html += `<li>${w}</li>`;
             });
@@ -1948,7 +2037,7 @@ if (data && data.riskScore && data.details && data.summary) {
             const title = type === 'contract'
                 ? 'Detected contract features (technical tags):'
                 : 'Suspicious phrases found on the page:';
-            html += `<div class="report-section"><div class="report-title">${title}</div><div class="muted-note">Click any address to run a wallet or contract-level scan.</div><ul class="report-list">`;
+            html += `<div class="report-section"><div class="report-title">${title}</div><div class="muted-note">Details related to this section. Review these items carefully; some patterns may be associated with scams or high-risk schemes.</div><ul class="report-list">`;
             contentFlags.forEach(function (f) {
                 html += `<li>${f}</li>`;
             });
@@ -1957,7 +2046,10 @@ if (data && data.riskScore && data.details && data.summary) {
 
         if (Array.isArray(data.foundWallets) && data.foundWallets.length > 0) {
             const title = 'Wallets detected on this page:';
-            html += `<div class="report-section"><div class="report-title">${title}</div><div class="muted-note">Click any address to run a wallet or contract-level scan.</div><ul class="report-list">`;
+            html += `<div class="report-section">
+                <div class="report-title">${title}</div>
+                <div class="muted-note">Click any address to run a wallet or contract-level scan.</div>
+                <ul class="report-list">`;
             data.foundWallets.forEach(function (w) {
                 if (!w || !w.address) return;
                 const addr = w.address;

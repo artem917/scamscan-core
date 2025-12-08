@@ -245,12 +245,14 @@ app.get('/api/check', async (req, res) => {
     details: {}
   };
 
+  let partialAnalysis = false;
+
   try {
     // === DOMAIN / URL ===
     if (detectedType === 'url' || detectedType === 'domain') {
         const domainForWhois = normalizeDomainForWhois(value);
         const whoisAnalysis = await analyzeWhois(domainForWhois);
-        
+
         // Basic Content Scan
         let contentAnalysis = { score: 0, warnings: [] };
         try {
@@ -260,9 +262,21 @@ app.get('/api/check', async (req, res) => {
         }
 
         // Combine Risks
-        result.riskScore = Math.min(100, whoisAnalysis.riskScore + contentAnalysis.score);
-        result.warnings = [...whoisAnalysis.warnings, ...contentAnalysis.warnings || []];
-        
+        const whoisScore = typeof whoisAnalysis.riskScore === "number" ? whoisAnalysis.riskScore : 0;
+        const contentScore = typeof contentAnalysis.score === "number" ? contentAnalysis.score : 0;
+        result.riskScore = Math.min(100, whoisScore + contentScore);
+
+        const allWarnings = [
+          ...(whoisAnalysis.warnings || []),
+          ...(contentAnalysis.warnings || []),
+          ...(contentAnalysis.walletWarnings || []),
+        ];
+        result.warnings = allWarnings;
+
+        if (contentAnalysis && contentAnalysis.source === "failed") {
+          partialAnalysis = true;
+        }
+
         result.details = {
             whois: whoisAnalysis,
             content: contentAnalysis
@@ -302,7 +316,12 @@ app.get('/api/check', async (req, res) => {
     // Verdict Logic
     if (result.riskScore >= 75) result.verdict = "SCAM";
     else if (result.riskScore >= 40) result.verdict = "SUSPICIOUS";
+    else if (partialAnalysis) result.verdict = "WARNING";
     else result.verdict = "SAFE";
+
+    if (partialAnalysis) {
+      result.warnings.push("Content analysis was not completed for this URL (DNS / network issues); verdict is based on limited data.");
+    }
 
     const finalResult = applyUrlDomainWhitelist(result);
     return res.json(finalResult);

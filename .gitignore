@@ -43,3 +43,7 @@ dump.pm2
 # Local backup JS files (not tracked in repo)
 *before_*.js
 bot.apihealth_*.js
+
+# More local bot backups
+bot.after_*.js
+bot.apihealth_*.js

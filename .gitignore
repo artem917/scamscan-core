@@ -10,7 +10,6 @@ scamscan-token/
 
 # node_modules по проектам
 scamscan-api/node_modules/
-scamscan-web/node_modules/
 scamscan-bot/node_modules/
 
 # приват и временное
@@ -34,7 +33,6 @@ dump.pm2
 # Local folders, not in repo
 /deploy-ui/
 /meaning-parser-bot/
-/scamscan-web/
 
 # Local backup files, keep only on server
 *.before_health_*.js

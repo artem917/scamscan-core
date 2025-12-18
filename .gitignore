@@ -20,3 +20,13 @@ scamscan-bot/node_modules/
 
 # pm2 дампы
 dump.pm2
+
+# Secrets (never commit)
+**/.env
+**/.env.*
+**/*.env
+**/*.env.*
+
+# allow examples
+!**/.env.example
+!**/*.env.example

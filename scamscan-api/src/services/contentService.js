@@ -293,6 +293,10 @@ function evaluateTextRisk(text) {
   });
 
   // Комбинации паттернов
+  if (hasYieldPromise) {
+    score = Math.max(score, 40);
+  }
+
   if (hasInvestmentBuzz && hasYieldPromise) {
     score = Math.max(score, 60);
   }

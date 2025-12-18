@@ -10,6 +10,14 @@ const { RPC_PROVIDERS } = require('./src/config/rpc');
 // --- Utils ---
 const { detectType, detectChain } = require('./src/utils/domainUtils');
 
+// --- Runtime metrics (simple in-memory counters) ---
+const METRICS = {
+  totalRequests: 0,
+  totalErrors: 0,
+  lastErrorAt: null,
+  lastErrorMessage: null
+};
+
 
 // --- Helpers ---
 function normalizeDomainForWhois(value) {
@@ -224,8 +232,36 @@ app.get("/api/ping", (req, res) => {
   res.json({ status: "ok" });
 });
 
+app.get("/api/health", (req, res) => {
+  const uptimeSec = Math.round(process.uptime());
+  const now = new Date().toISOString();
+  const rpcNetworks = RPC_PROVIDERS ? Object.keys(RPC_PROVIDERS) : [];
+
+  res.json({
+    status: "ok",
+    time: now,
+    uptimeSec,
+    version: process.env.APP_VERSION || null,
+    rateLimit: {
+      windowMs: RATE_LIMIT_WINDOW_MS,
+      max: RATE_LIMIT_MAX
+    },
+    rpc: {
+      networks: rpcNetworks
+    },
+    errors: {
+      totalRequests: METRICS.totalRequests,
+      totalErrors: METRICS.totalErrors,
+      lastErrorAt: METRICS.lastErrorAt,
+      lastErrorMessage: METRICS.lastErrorMessage
+    }
+  });
+});
+
 
 app.get('/api/check', async (req, res) => {
+  METRICS.totalRequests++;
+
   const type = req.query.type;   // 'url' | 'wallet' | 'contract' | 'ip'
   const value = req.query.value; // e.g. 'google.com'
 
@@ -262,25 +298,20 @@ app.get('/api/check', async (req, res) => {
         }
 
         // Combine Risks
-        const whoisScore = typeof whoisAnalysis.riskScore === "number" ? whoisAnalysis.riskScore : 0;
-        const contentScore = typeof contentAnalysis.score === "number" ? contentAnalysis.score : 0;
-        result.riskScore = Math.min(100, whoisScore + contentScore);
-
-        const allWarnings = [
-          ...(whoisAnalysis.warnings || []),
-          ...(contentAnalysis.warnings || []),
-          ...(contentAnalysis.walletWarnings || []),
-        ];
-        result.warnings = allWarnings;
-
-        if (contentAnalysis && contentAnalysis.source === "failed") {
-          partialAnalysis = true;
-        }
-
+        result.riskScore = Math.min(100, whoisAnalysis.riskScore + contentAnalysis.score);
+        result.warnings = [...whoisAnalysis.warnings, ...(contentAnalysis.warnings || [])];
+        
         result.details = {
             whois: whoisAnalysis,
             content: contentAnalysis
         };
+
+        const hasContentFetchFailure = contentAnalysis && contentAnalysis.source === "failed";
+        const hasNoWhoisSignal = whoisAnalysis && typeof whoisAnalysis.riskScore === "number" && whoisAnalysis.riskScore === 0;
+
+        if (hasContentFetchFailure && hasNoWhoisSignal) {
+            result.riskScore = null;
+        }
     }
     
     // === WALLET / CONTRACT ===
@@ -328,6 +359,9 @@ app.get('/api/check', async (req, res) => {
 
   } catch (error) {
     console.error("Analysis Error:", error);
+    METRICS.totalErrors++;
+    METRICS.lastErrorAt = new Date().toISOString();
+    METRICS.lastErrorMessage = (error && error.message) ? error.message : String(error);
     return res.status(500).json({ error: "Internal Server Error", details: error.message });
   }
 });

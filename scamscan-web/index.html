@@ -1072,7 +1072,7 @@ header {
                         <button type="button" class="demo-btn" onclick="setCheckType('url'); document.getElementById('inputField').value='https://belgatrix.com/'; fakeCheck();">
                             Obvious scam URL
                         </button>
-                        <button type="button" class="demo-btn" onclick="setCheckType('url'); document.getElementById('inputField').value='https://scamscan.online/demo-gray-url.html'; fakeCheck();">
+                        <button type="button" class="demo-btn" onclick="setCheckType('url'); document.getElementById('inputField').value='https://nexchain.ai'; fakeCheck();">
                             Gray-area URL
                         </button>
                         <button type="button" class="demo-btn" onclick="setCheckType('wallet'); document.getElementById('inputField').value='0x07c06d1EC98Ee2DC14Ba64B238d6A35B2cAB5f15'; fakeCheck();">
@@ -1679,6 +1679,7 @@ if (data && data.riskScore && data.details && data.summary) {
 
         // Content risk score
         let score = null;
+        let scoreRendered = false;
         if (typeof data.contentRiskScore === 'number') {
             score = data.contentRiskScore;
         } else if (type === 'url' && data.details && data.details.content && typeof data.details.content.score === 'number') {
@@ -2034,9 +2035,14 @@ if (data && data.riskScore && data.details && data.summary) {
         }
 
         if (contentFlags.length > 0) {
+        if (type === 'url' && score !== null) {
+            const note = 'Content risk score: ' + score + ' / 100.';
+            html += '<div class="muted-note">' + note + '</div>';
+        }
+
             const title = type === 'contract'
                 ? 'Detected contract features (technical tags):'
-                : 'Suspicious phrases found on the page:';
+                : 'Content & page analysis:';
             html += `<div class="report-section"><div class="report-title">${title}</div><div class="muted-note">Details related to this section. Review these items carefully; some patterns may be associated with scams or high-risk schemes.</div><ul class="report-list">`;
             contentFlags.forEach(function (f) {
                 html += `<li>${f}</li>`;
@@ -2066,7 +2072,7 @@ if (data && data.riskScore && data.details && data.summary) {
             // Если кошельков на странице не найдено, можно не показывать отдельный блок.
         }
 
-        if (type === "url" && whoisData) {
+        if (type === "url" && whoisData && (whoisData.registrar || whoisData.createdAt || typeof whoisData.ageDays === "number")) {
             html += "<div class=\"report-section\"><div class=\"report-title\">WHOIS information:</div><ul class=\"report-list\">";
             if (whoisData.registrar) html += "<li>Registrar: " + whoisData.registrar + "</li>";
             if (whoisData.createdAt) html += "<li>Created: " + whoisData.createdAt + "</li>";
@@ -2074,7 +2080,7 @@ if (data && data.riskScore && data.details && data.summary) {
             html += "</ul></div>";
         }
 
-        if (score !== null) {
+        if (score !== null && type !== "url") {
             const note = `Content risk score: ${score} / 100.`;
             html += `<div class="muted-note">${note}</div>`;
         }
@@ -2117,11 +2123,11 @@ if (data && data.riskScore && data.details && data.summary) {
             t.push("[✓] URL & domain checks: " + msDomain + "ms");
             t.push("[✓] Redirect mapping: " + hops + " hops");
             t.push("[✓] SSL / TLS fingerprint: OK (TLS 1.3)");
-            t.push("[✓] Content heuristics: " + msContent + "ms");
 
             if (urlSource) {
                 t.push("[✓] HTML extraction: " + urlSource);
             }
+            t.push("[✓] Content heuristics: " + msContent + "ms");
             if (matchesCount > 0) {
                 t.push("[✓] Pattern detection: " + matchesCount + " phrase(s) matched");
             }

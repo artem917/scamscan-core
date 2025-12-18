@@ -203,15 +203,16 @@ async function fetchFromRdap(domain) {
     // RDAP events: ищем registration / expiration / last changed
     const events = Array.isArray(data.events) ? data.events : [];
     const findEvent = (...names) =>
-      events.find((e) =>
-        names.includes(String(e.eventAction || e.action || '').toLowerCase())
-      );
+      events.find((e) => {
+        const action = String(e.eventAction || e.action || '').toLowerCase();
+        return names.some((name) => action.includes(name));
+      });
 
     const createdAt = toIsoDate(
-      (findEvent('registration', 'registered') || {}).eventDate
+      (findEvent('registration', 'registered', 'creation', 'created') || {}).eventDate
     );
     const updatedAt = toIsoDate(
-      (findEvent('last changed', 'last change', 'last update') || {})
+      (findEvent('last changed', 'last change', 'last update', 'update', 'updated') || {})
         .eventDate
     );
     const expiresAt = toIsoDate(
@@ -361,7 +362,11 @@ async function analyzeWhois(domain) {
     // Ошибки поставщика типа "quota exceeded" пользователю не показываем,
     // они никак не описывают надёжность домена.
     if (!isQuotaError) {
-      warnings.push(`WHOIS lookup had issues (source=${data.source}): ${data.error}`);
+      if (errStr.includes("status 404") || errStr.includes("not found")) {
+      warnings.push("WHOIS registry did not return data for this domain (HTTP 404 from WHOIS/RDAP). The website itself can still be reachable; this only affects registration data, not site availability.");
+    } else {
+      warnings.push("WHOIS lookup had issues (source=" + data.source + "): " + data.error);
+    }
     }
   }
 

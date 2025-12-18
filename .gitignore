@@ -51,3 +51,5 @@ bot.apihealth_*.js
 # Extra bot backup variants
 scamscan-bot/bot.after_*.js
 scamscan-bot/bot.apihealth_*.js
+scamscan-bot/bot.broken_token_*.js
+scamscan-bot/bot.fix_apihealth_line_*.js

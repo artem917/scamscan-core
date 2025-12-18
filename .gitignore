@@ -47,3 +47,7 @@ bot.apihealth_*.js
 # More local bot backups
 bot.after_*.js
 bot.apihealth_*.js
+
+# Extra bot backup variants
+scamscan-bot/bot.after_*.js
+scamscan-bot/bot.apihealth_*.js

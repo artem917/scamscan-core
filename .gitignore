@@ -39,3 +39,7 @@ dump.pm2
 # Local backup files, keep only on server
 *.before_health_*.js
 *metrics_step1_*.js
+
+# Local backup JS files (not tracked in repo)
+*before_*.js
+bot.apihealth_*.js

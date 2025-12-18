@@ -1,53 +1,44 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const fs = require('fs');
 const path = require('path');
-const { execSync, exec } = require('child_process');
-const open = require('open').default;
+const { exec } = require('child_process');
 
 const app = express();
+const PORT = 3001;
+
+// Папка с HTML формой деплоя
+const deployUIPath = '/var/www/deploy-ui';
+
+app.use(express.static(deployUIPath));
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'deploy-ui')));
 
-const deployUIPath = path.join(__dirname, 'deploy-ui');
-if (!fs.existsSync(deployUIPath)) fs.mkdirSync(deployUIPath);
-
-const indexPath = path.join(deployUIPath, 'index.html');
-if (!fs.existsSync(indexPath)) {
-  fs.writeFileSync(indexPath, `<!DOCTYPE html>
-<html>
-<head>
-<title>ScamScan Deploy</title>
-<style>body{font-family:Arial;max-width:600px;margin:50px auto;padding:20px}</style>
-</head>
-<body>
-<h1>Deploy to GitHub</h1>
-<textarea id="changelog" rows="10" style="width:100%">## Changes</textarea>
-<br><br>
-<button onclick="deploy()">Deploy & Push</button>
-<p id="status"></p>
-<script>
-function deploy(){
-  fetch('/deploy', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({changelog:document.getElementById('changelog').value})})
-  .then(r=>r.json()).then(d=>document.getElementById('status').innerText=d.message)
-  .catch(e=>document.getElementById('status').innerText='Error: '+e)
-}
-</script>
-</body>
-</html>`);
-}
-
+// Обработка формы: текст -> git commit + push
 app.post('/deploy', (req, res) => {
-  try {
-    const { changelog } = req.body;
-    execSync(`git add . && git commit -m "Update CHANGELOG" && git push`, { cwd: path.resolve(__dirname, '..') });
-    res.json({ message: 'Deployed successfully!' });
-  } catch (err) {
-    res.json({ message: 'Error: ' + err.message });
+  const message = (req.body.message || '').trim();
+  if (!message) {
+    return res.status(400).send('Commit message is required');
   }
+
+  // Репозиторий — текущая папка scamscan-api (монорепа под /var/www уже настроена)
+  const cmd = `
+    cd /var/www &&
+    git add . &&
+    git commit -m "${message.replace(/"/g, '\\"')}" &&
+    git push
+  `;
+
+  exec(cmd, (error, stdout, stderr) => {
+    if (error) {
+      console.error('Deploy error:', error);
+      console.error(stderr);
+      return res.status(500).send('Deploy failed: ' + stderr);
+    }
+    console.log('Deploy output:', stdout);
+    res.send('Deploy & Push OK');
+  });
 });
 
-app.listen(3001, () => {
-  console.log('Deploy server running at http://localhost:3001');
-  open('http://localhost:3001');
+app.listen(PORT, () => {
+  console.log('Deploy UI server listening on http://localhost:' + PORT);
 });

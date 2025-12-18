@@ -35,3 +35,7 @@ dump.pm2
 /deploy-ui/
 /meaning-parser-bot/
 /scamscan-web/
+
+# Local backup files, keep only on server
+*.before_health_*.js
+*metrics_step1_*.js

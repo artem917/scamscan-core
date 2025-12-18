@@ -30,3 +30,8 @@ dump.pm2
 # allow examples
 !**/.env.example
 !**/*.env.example
+
+# Local folders, not in repo
+/deploy-ui/
+/meaning-parser-bot/
+/scamscan-web/

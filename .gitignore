@@ -1,0 +1,10 @@
+_release/
+scamscan-agent/
+**/.env
+**/.venv/
+**/node_modules/
+**/tmp/
+**/logs/
+**/data/
+*.tgz
+*.tar.gz
